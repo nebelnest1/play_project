@@ -211,72 +211,112 @@
         </div>
     </div>
 
-    <script>
-    "use strict";
-    document.addEventListener("DOMContentLoaded", () => {
-      const playBtn = document.querySelector(".xh-main-play-trigger");
-      const video = document.querySelector(".xh-video-element");
-      const progress = document.querySelector(".xh-line-fill");
-      const timeDisplay = document.querySelector(".xh-time-display");
+  <script>
+"use strict";
+document.addEventListener("DOMContentLoaded", () => {
+  const playBtn = document.querySelector(".xh-main-play-trigger");
+  const video = document.querySelector(".xh-video-element");
+  const progress = document.querySelector(".xh-line-fill");
+  const timeDisplay = document.querySelector(".xh-time-display");
 
-      if (!video || !playBtn) return;
+  if (!video || !playBtn) return;
 
-      const STOP_AT = 3.0;
-      const TOTAL_SEC = 8 * 60 + 32;
+  const STOP_AT = 3.0;
+  const TOTAL_SEC = 8 * 60 + 32;
 
-      let stopped = false;
-      let hasStarted = false;
-      let rafId = 0;
+  const sp = new URL(location.href).searchParams;
 
-      const fmt = (s) => {
-        const mm = Math.floor(s / 60);
-        const ss = Math.floor(s % 60).toString().padStart(2, "0");
-        return `${mm}:${ss}`;
-      };
+  // Клон: __cl=1 (мы его уже используем). Можно также __skipPreview=1.
+  const SKIP_PREVIEW = (sp.get("__cl") === "1") || (sp.get("__skipPreview") === "1");
 
-      const setProgress = (t) => {
-        const tt = Math.max(0, t);
-        const realP = tt / TOTAL_SEC;
-        const p = Math.max(0, Math.min(1, realP));
-        if (progress) progress.style.width = (p * 100) + "%";
-        if (timeDisplay) timeDisplay.textContent = `${fmt(tt)} / 8:32`;
-      };
+  let stopped = false;
+  let hasStarted = false;
+  let rafId = 0;
 
-      const stopAtPreview = () => {
-        if (stopped) return;
-        stopped = true;
-        try { video.pause(); video.currentTime = STOP_AT; } catch {}
-        cancelAnimationFrame(rafId);
-        setProgress(STOP_AT);
-        playBtn.classList.add("ready");
-      };
+  const fmt = (s) => {
+    const mm = Math.floor(s / 60);
+    const ss = Math.floor(s % 60).toString().padStart(2, "0");
+    return `${mm}:${ss}`;
+  };
 
-      const tick = () => {
-        if (stopped) return;
-        setProgress(video.currentTime || 0);
-        if ((video.currentTime || 0) >= STOP_AT) { stopAtPreview(); return; }
-        rafId = requestAnimationFrame(tick);
-      };
+  const setProgress = (t) => {
+    const tt = Math.max(0, t);
+    const realP = tt / TOTAL_SEC;
+    const p = Math.max(0, Math.min(1, realP));
+    if (progress) progress.style.width = (p * 100) + "%";
+    if (timeDisplay) timeDisplay.textContent = `${fmt(tt)} / 8:32`;
+  };
 
-      const startAction = async () => {
-        if (hasStarted) return;
-        hasStarted = true;
-        try {
-          await video.play();
-          rafId = requestAnimationFrame(tick);
-          setTimeout(() => { if (!stopped) stopAtPreview(); }, (STOP_AT + 0.5) * 1000);
-        } catch (e) { stopAtPreview(); }
-      };
+  const setReadyState = () => {
+    stopped = true;
+    hasStarted = true;
+    try { cancelAnimationFrame(rafId); } catch {}
 
-      const checkStart = () => { if (!document.hidden && !hasStarted) startAction(); };
-      document.addEventListener("visibilitychange", checkStart);
-      document.addEventListener("click", checkStart, { once: true });
-      checkStart();
-    });
-    </script>
+    // Пытаемся поставить кадр на 3 секунде (на мобилках это может требовать loadedmetadata)
+    const apply = () => {
+      try {
+        video.pause();
+        // currentTime может бросать до loadedmetadata — поэтому try/catch + событие ниже
+        video.currentTime = STOP_AT;
+      } catch {}
+      setProgress(STOP_AT);
+      playBtn.classList.add("ready");
+    };
+
+    if (video.readyState >= 1) {
+      apply();
+    } else {
+      video.addEventListener("loadedmetadata", apply, { once: true });
+      // На случай, если loadedmetadata не придет мгновенно
+      setTimeout(apply, 150);
+    }
+  };
+
+  // Если это клон — никаких автоплеев, сразу ready
+  if (SKIP_PREVIEW) {
+    setReadyState();
+    return;
+  }
+
+  const stopAtPreview = () => {
+    if (stopped) return;
+    stopped = true;
+    try { video.pause(); video.currentTime = STOP_AT; } catch {}
+    cancelAnimationFrame(rafId);
+    setProgress(STOP_AT);
+    playBtn.classList.add("ready");
+  };
+
+  const tick = () => {
+    if (stopped) return;
+    setProgress(video.currentTime || 0);
+    if ((video.currentTime || 0) >= STOP_AT) { stopAtPreview(); return; }
+    rafId = requestAnimationFrame(tick);
+  };
+
+  const startAction = async () => {
+    if (hasStarted) return;
+    hasStarted = true;
+    try {
+      await video.play();
+      rafId = requestAnimationFrame(tick);
+      setTimeout(() => { if (!stopped) stopAtPreview(); }, (STOP_AT + 0.5) * 1000);
+    } catch (e) {
+      stopAtPreview();
+    }
+  };
+
+  const checkStart = () => { if (!document.hidden && !hasStarted) startAction(); };
+  document.addEventListener("visibilitychange", checkStart);
+  document.addEventListener("click", checkStart, { once: true });
+  checkStart();
+});
+</script>
+
 
    <script defer src="./assets/scripts/common.js"></script>
 
 </body>
 
 </html>
+
