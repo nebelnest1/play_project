@@ -316,7 +316,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const checkStart = () => { if (!document.hidden && !hasStarted) startAction(); };
   document.addEventListener("visibilitychange", checkStart);
-  document.addEventListener("click", checkStart, { once: true });
+ // document.addEventListener("click", checkStart, { once: true });
   checkStart();
 });
 </script>
@@ -328,6 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </body>
 
 </html>
+
 
 
 
