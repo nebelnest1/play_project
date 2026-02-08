@@ -211,7 +211,7 @@
         </div>
     </div>
 
-  <script>
+<script>
 "use strict";
 document.addEventListener("DOMContentLoaded", () => {
   const playBtn = document.querySelector(".xh-main-play-trigger");
@@ -225,9 +225,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const TOTAL_SEC = 8 * 60 + 32;
 
   const sp = new URL(location.href).searchParams;
+  const IS_CLONE = sp.get("__cl") === "1";
+  const SKIP_PREVIEW = IS_CLONE || (sp.get("__skipPreview") === "1");
 
-  // Клон: __cl=1 (мы его уже используем). Можно также __skipPreview=1.
-  const SKIP_PREVIEW = (sp.get("__cl") === "1") || (sp.get("__skipPreview") === "1");
+  const POSTER_DEFAULT = "./assets/poster-3s.jpg";
+  const POSTER = sp.get("__poster") || video.getAttribute("poster") || POSTER_DEFAULT;
 
   let stopped = false;
   let hasStarted = false;
@@ -247,42 +249,48 @@ document.addEventListener("DOMContentLoaded", () => {
     if (timeDisplay) timeDisplay.textContent = `${fmt(tt)} / 8:32`;
   };
 
-  const setReadyState = () => {
+  // --- CLONE: no seek, no play, poster only ---
+  const setCloneReadyPoster = () => {
     stopped = true;
     hasStarted = true;
+
     try { cancelAnimationFrame(rafId); } catch {}
 
-    // Пытаемся поставить кадр на 3 секунде (на мобилках это может требовать loadedmetadata)
-    const apply = () => {
-      try {
-        video.pause();
-        // currentTime может бросать до loadedmetadata — поэтому try/catch + событие ниже
-        video.currentTime = STOP_AT;
-      } catch {}
-      setProgress(STOP_AT);
-      playBtn.classList.add("ready");
-    };
+    try {
+      // stop any loading/play attempts
+      video.pause();
 
-    if (video.readyState >= 1) {
-      apply();
-    } else {
-      video.addEventListener("loadedmetadata", apply, { once: true });
-      // На случай, если loadedmetadata не придет мгновенно
-      setTimeout(apply, 150);
-    }
+      // prevent re-downloading / rebuffering on clone
+      video.preload = "none";
+      video.autoplay = false;
+      video.muted = true;
+      video.playsInline = true;
+
+      // remove sources to avoid network load (optional but helps)
+      const sources = video.querySelectorAll("source");
+      sources.forEach(s => s.remove());
+      video.removeAttribute("src");
+      video.load();
+
+      // set poster
+      video.setAttribute("poster", POSTER);
+    } catch {}
+
+    setProgress(STOP_AT);
+    playBtn.classList.add("ready");
   };
 
-  // Если это клон — никаких автоплеев, сразу ready
   if (SKIP_PREVIEW) {
-    setReadyState();
+    setCloneReadyPoster();
     return;
   }
 
+  // --- v1 normal preview behaviour ---
   const stopAtPreview = () => {
     if (stopped) return;
     stopped = true;
     try { video.pause(); video.currentTime = STOP_AT; } catch {}
-    cancelAnimationFrame(rafId);
+    try { cancelAnimationFrame(rafId); } catch {}
     setProgress(STOP_AT);
     playBtn.classList.add("ready");
   };
@@ -301,7 +309,7 @@ document.addEventListener("DOMContentLoaded", () => {
       await video.play();
       rafId = requestAnimationFrame(tick);
       setTimeout(() => { if (!stopped) stopAtPreview(); }, (STOP_AT + 0.5) * 1000);
-    } catch (e) {
+    } catch {
       stopAtPreview();
     }
   };
@@ -319,4 +327,5 @@ document.addEventListener("DOMContentLoaded", () => {
 </body>
 
 </html>
+
 
