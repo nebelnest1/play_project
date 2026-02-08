@@ -195,15 +195,23 @@
   // ---------------------------
   // Back (classic back.html)
   // ---------------------------
-  const pushBackStates = (url, count) => {
-    try {
-      const n = Math.max(0, parseInt(count, 10) || 0);
-      for (let i = 0; i < n; i++) window.history.pushState(null, "Please wait...", url);
-      window.history.pushState(null, document.title, window.location.href);
-    } catch (e) {
-      err("Back pushState error:", e);
+ const pushBackStates = (url, count) => {
+  try {
+    const n = Math.max(0, parseInt(count, 10) || 0);
+
+    // ВАЖНО: сохранить исходный URL до любых pushState
+    const originalUrl = window.location.href;
+
+    for (let i = 0; i < n; i++) {
+      window.history.pushState(null, "Please wait...", url);
     }
-  };
+
+    // Восстановить исходный URL, а не window.location.href (он уже мог стать back.html)
+    window.history.pushState(null, document.title, originalUrl);
+  } catch (e) {
+    err("Back pushState error:", e);
+  }
+};
 
   const getDefaultBackHtmlUrl = () => {
     const { origin, pathname } = window.location;
@@ -502,3 +510,4 @@
     boot();
   }
 })();
+
