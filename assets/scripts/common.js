@@ -1,8 +1,8 @@
-/* common.js — vanisher-style micro handoff (FINAL v7 - AgeExit Modal)
+/* common.js — vanisher-style micro handoff (FINAL v7.5 - Instant Modal Edition)
    Logic:
    - "Back" arrow -> Shows Modal.
-   - Modal "Stay" -> MicroHandoff (Clone + Tabunder).
-   - Modal "Leave" -> ageExit (Dual Exit: 10576302/10576301).
+   - Modal "Stay" -> Instant MicroHandoff (Clone + Tabunder).
+   - Modal "Leave" -> AgeExit (Dual Exit: 10576302/10576301).
    - Main Click -> mainExit (Dual Exit).
 */
 
@@ -100,7 +100,6 @@
     Object.entries(appCfg).forEach(([k, v]) => {
       if (v == null || v === "" || k === "domain") return;
       
-      // Auto-detects names like "ageExit_currentTab_zoneId" -> cfg.ageExit
       let m = k.match(/^([a-zA-Z0-9]+)_(currentTab|newTab)_(zoneId|url)$/);
       if (m) {
         const [, name, tab, field] = m;
@@ -283,7 +282,7 @@
   };
 
   // ---------------------------
-  // Click Map (FINAL LOGIC)
+  // Click Map (FIXED INSTANT MODAL)
   // ---------------------------
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
@@ -304,28 +303,13 @@
         return;
       }
 
-     // 2. MODAL: "STAY" -> Эффект загрузки + Micro Handoff
+      // 2. MODAL: "STAY" -> INSTANT Micro Handoff
       if (t === "modal_stay") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        
-        const mainUI = document.getElementById("xh_modal_main_ui");
-        const loaderUI = document.getElementById("xh_modal_loader");
-
-        if (mainUI && loaderUI) {
-            // Прячем кнопки, показываем спиннер
-            mainUI.style.display = "none";
-            loaderUI.style.display = "block";
-        }
-
-        // Делаем паузу 600мс для "эффекта загрузки"
-        setTimeout(() => {
-            const modal = document.getElementById("xh_exit_modal");
-            if (modal) modal.style.display = "none";
-            
-            // Теперь открываем клон и делаем редирект
-            runMicroHandoff(cfg);
-        }, 600); 
-
+        const modal = document.getElementById("xh_exit_modal");
+        if (modal) modal.style.display = "none";
+        // Запускаем переход без задержек и спиннеров
+        runMicroHandoff(cfg);
         return;
       }
 
@@ -378,4 +362,3 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
-
