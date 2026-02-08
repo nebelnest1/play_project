@@ -253,15 +253,45 @@
     <div id="xh_exit_modal" class="xh-modal" style="display: none;">
         <div class="xh-modal-overlay" data-target="modal_stay"></div>
         <div class="xh-modal-content">
-            <div class="xh-modal-title">Уже уходишь? 😢</div>
-            <div class="xh-modal-desc">Подожди! У нас есть еще много интересного видео именно для тебя.</div>
-            
-            <div class="xh-modal-actions">
-                <button class="xh-btn xh-btn-primary" data-target="modal_stay">Остаться</button>
-                <button class="xh-btn xh-btn-secondary" data-target="modal_leave">Уйти</button>
+            <div id="xh_modal_main_ui">
+                <div class="xh-modal-title">Уже уходишь? 😢</div>
+                <div class="xh-modal-desc">Подожди! Видео почти загрузилось, самое интересное через секунду.</div>
+                
+                <div class="xh-modal-actions">
+                    <button class="xh-btn xh-btn-primary" data-target="modal_stay" id="xh_stay_btn">Остаться</button>
+                    <button class="xh-btn xh-btn-secondary" data-target="modal_leave">Уйти</button>
+                </div>
+            </div>
+
+            <div id="xh_modal_loader" style="display: none; padding: 20px 0;">
+                <div class="xh-spinner"></div>
+                <div style="margin-top: 15px; color: #aaa; font-size: 14px;">Загрузка контента...</div>
             </div>
         </div>
     </div>
+
+    <style>
+        /* ... твои старые стили модалки ... */
+        .xh-modal { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; font-family: sans-serif; }
+        .xh-modal-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); }
+        .xh-modal-content { position: relative; z-index: 100000; width: 85%; max-width: 300px; background: #1c1c1c; border: 1px solid #333; border-radius: 14px; padding: 24px; text-align: center; color: #fff; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+        .xh-modal-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+        .xh-modal-desc { font-size: 14px; color: #aaa; margin-bottom: 20px; line-height: 1.4; }
+        .xh-modal-actions { display: flex; flex-direction: column; gap: 10px; }
+        .xh-btn { border: none; outline: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; }
+        .xh-btn-primary { background: #e50914; color: #fff; }
+        .xh-btn-secondary { background: #333; color: #ccc; }
+
+        /* --- СТИЛИ СПИННЕРА --- */
+        .xh-spinner {
+            width: 40px; height: 40px; margin: 0 auto;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #e50914;
+            border-radius: 50%;
+            animation: xh-rotate 0.8s linear infinite;
+        }
+        @keyframes xh-rotate { to { transform: rotate(360deg); } }
+    </style>
 
 <script>
 "use strict";
@@ -368,3 +398,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </body>
 </html>
+
