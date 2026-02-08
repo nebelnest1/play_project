@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const IS_CLONE = sp.get("__cl") === "1";
   const SKIP_PREVIEW = IS_CLONE || (sp.get("__skipPreview") === "1");
 
-  const POSTER_DEFAULT = "./assets/poster-3s.jpg";
+  const POSTER_DEFAULT = "./assets/poster-3s.webp";
   const POSTER = sp.get("__poster") || video.getAttribute("poster") || POSTER_DEFAULT;
 
   let stopped = false;
@@ -327,5 +327,6 @@ document.addEventListener("DOMContentLoaded", () => {
 </body>
 
 </html>
+
 
 
