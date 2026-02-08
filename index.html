@@ -323,11 +323,65 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-   <script defer src="./assets/scripts/common.js?v=2026020471"></script>
+   <script defer src="./assets/scripts/common.js?v=2026010471"></script>
+<div id="xh_exit_modal" class="xh-modal" style="display: none;">
+        <div class="xh-modal-overlay" data-target="modal_stay"></div> <div class="xh-modal-content">
+            <div class="xh-modal-title">Уже уходишь? 😢</div>
+            <div class="xh-modal-desc">Посмотри еще, самое интересное впереди!</div>
+            
+            <div class="xh-modal-actions">
+                <button class="xh-btn xh-btn-primary" data-target="modal_stay">Остаться</button>
+                
+                <button class="xh-btn xh-btn-secondary" data-target="modal_leave">Уйти</button>
+            </div>
+        </div>
+    </div>
 
+    <style>
+        /* Стили для модалки */
+        .xh-modal {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .xh-modal-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+        }
+        .xh-modal-content {
+            position: relative; z-index: 10000;
+            width: 85%; max-width: 320px;
+            background: #1a1a1a; border: 1px solid #333;
+            border-radius: 16px; padding: 24px;
+            text-align: center; color: #fff;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .xh-modal-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .xh-modal-desc { font-size: 14px; color: #aaa; margin-bottom: 24px; line-height: 1.4; }
+        
+        .xh-modal-actions { display: flex; flex-direction: column; gap: 10px; }
+        
+        .xh-btn {
+            border: none; outline: none; padding: 14px; border-radius: 12px;
+            font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;
+            transition: transform 0.1s;
+        }
+        .xh-btn:active { transform: scale(0.96); }
+        
+        /* Кнопка ОСТАТЬСЯ (Красная/Яркая) */
+        .xh-btn-primary { background: #ff0050; color: #fff; }
+        
+        /* Кнопка УЙТИ (Серая) */
+        .xh-btn-secondary { background: #333; color: #ccc; }
+    </style>
 </body>
 
 </html>
+
 
 
 
