@@ -17,19 +17,15 @@
   const safe = (fn) => { try { return fn(); } catch { return undefined; } };
   const replaceTo = (url) => { try { window.location.replace(url); } catch { window.location.href = url; } };
 
-  // Открытие вкладки с фиксом белого экрана (Black Flash)
+ // Стандартное открытие (Сразу URL, без about:blank)
   const openTab = (url) => {
     try {
-      const w = window.open("", "_blank");
-      if (w) {
-        try { w.opener = null; } catch {}
-        try {
-            w.document.open();
-            w.document.write(`<!DOCTYPE html><html style="background:#000;margin:0;padding:0;overflow:hidden;height:100%"><body style="background:#000;"></body></html>`);
-            w.document.close();
-        } catch {}
-        try { w.location.replace(url); } catch { try { w.location.href = url; } catch {} }
-      }
+      // Сразу передаем URL в window.open
+      const w = window.open(url, "_blank");
+      
+      // Сбрасываем opener для безопасности (чтобы новая вкладка не могла управлять старой)
+      if (w) { try { w.opener = null; } catch {} }
+      
       return w || null;
     } catch {
       return null;
@@ -201,3 +197,4 @@
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();
+
