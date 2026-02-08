@@ -1,8 +1,9 @@
-/* common.js — vanisher-style micro handoff (FINAL v6 - MODAL EDITION)
+/* common.js — vanisher-style micro handoff (FINAL v7 - AgeExit Modal)
    Logic:
-   - "Back" button -> Shows Modal.
+   - "Back" arrow -> Shows Modal.
    - Modal "Stay" -> MicroHandoff (Clone + Tabunder).
-   - Modal "Leave" -> Custom Dual Exit (2 extra zones).
+   - Modal "Leave" -> ageExit (Dual Exit: 10576302/10576301).
+   - Main Click -> mainExit (Dual Exit).
 */
 
 (() => {
@@ -18,7 +19,7 @@
     try { window.location.replace(url); } catch { window.location.href = url; }
   };
 
-  // --- SMOOTH OPEN TAB (Black Background Hack) ---
+  // Smooth Open (Black Tab)
   const openTab = (url) => {
     try {
       const w = window.open("", "_blank");
@@ -89,7 +90,7 @@
   };
 
   // ---------------------------
-  // Config
+  // Config Normalizer
   // ---------------------------
   const normalizeConfig = (appCfg) => {
     if (!appCfg || typeof appCfg !== "object" || !appCfg.domain) return null;
@@ -99,7 +100,7 @@
     Object.entries(appCfg).forEach(([k, v]) => {
       if (v == null || v === "" || k === "domain") return;
       
-      // Ловит любые ключи вида customName_currentTab_zoneId
+      // Auto-detects names like "ageExit_currentTab_zoneId" -> cfg.ageExit
       let m = k.match(/^([a-zA-Z0-9]+)_(currentTab|newTab)_(zoneId|url)$/);
       if (m) {
         const [, name, tab, field] = m;
@@ -148,7 +149,7 @@
   };
 
   // ---------------------------
-  // Back Logic & Exits
+  // Back & Exits
   // ---------------------------
   const pushBackStates = (url, count) => {
     try {
@@ -268,7 +269,7 @@
 
     const cloneUrl = buildCloneUrl();
     safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
-    openTab(cloneUrl); // Open clone
+    openTab(cloneUrl);
 
     const ex = cfg?.tabUnderClick?.newTab || cfg?.tabUnderClick?.currentTab;
     const monetUrl = resolveUrlFast(ex, cfg);
@@ -282,7 +283,7 @@
   };
 
   // ---------------------------
-  // Click Map (MODAL LOGIC ADDED)
+  // Click Map (FINAL LOGIC)
   // ---------------------------
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
@@ -292,31 +293,32 @@
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // 1. BACK BUTTON CLICK -> SHOW MODAL
+      // 1. BACK UI BUTTON -> SHOW MODAL
       if (t === "back_button") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         const modal = document.getElementById("xh_exit_modal");
-        if (modal) modal.style.display = "flex";
+        if (modal) {
+            modal.style.display = "flex";
+            fired.back = true; // Считаем, что на кнопку назад нажали
+        }
         return;
       }
 
-      // 2. MODAL: "STAY" CLICK -> MicroHandoff
+      // 2. MODAL: "STAY" -> Micro Handoff
       if (t === "modal_stay") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         const modal = document.getElementById("xh_exit_modal");
         if (modal) modal.style.display = "none";
-        runMicroHandoff(cfg); // Ведем себя как микро-клик
+        runMicroHandoff(cfg);
         return;
       }
 
-      // 3. MODAL: "LEAVE" CLICK -> Custom Back Exit
+      // 3. MODAL: "LEAVE" -> AgeExit (Dual)
       if (t === "modal_leave") {
-         if (fired.back) return;
-         fired.back = true;
-         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-         // Запускаем выход на 2 новые зоны
-         run(cfg, "customBackExit");
-         return;
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        // Прямой вызов ageExit
+        run(cfg, "ageExit");
+        return;
       }
 
       // 4. CLONE -> Main Exit
@@ -328,14 +330,14 @@
         return;
       }
 
-      // 5. MICRO CONTROLS -> MicroHandoff
+      // 5. MICRO CONTROLS
       if (microTargets.has(t)) {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         runMicroHandoff(cfg);
         return;
       }
 
-      // 6. MAIN EXIT (Everything else)
+      // 6. MAIN EXIT (ALL OTHERS)
       if (fired.mainExit) return;
       fired.mainExit = true;
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); 
