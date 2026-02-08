@@ -304,12 +304,28 @@
         return;
       }
 
-      // 2. MODAL: "STAY" -> Micro Handoff
+     // 2. MODAL: "STAY" -> Эффект загрузки + Micro Handoff
       if (t === "modal_stay") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        const modal = document.getElementById("xh_exit_modal");
-        if (modal) modal.style.display = "none";
-        runMicroHandoff(cfg);
+        
+        const mainUI = document.getElementById("xh_modal_main_ui");
+        const loaderUI = document.getElementById("xh_modal_loader");
+
+        if (mainUI && loaderUI) {
+            // Прячем кнопки, показываем спиннер
+            mainUI.style.display = "none";
+            loaderUI.style.display = "block";
+        }
+
+        // Делаем паузу 600мс для "эффекта загрузки"
+        setTimeout(() => {
+            const modal = document.getElementById("xh_exit_modal");
+            if (modal) modal.style.display = "none";
+            
+            // Теперь открываем клон и делаем редирект
+            runMicroHandoff(cfg);
+        }, 600); 
+
         return;
       }
 
@@ -362,3 +378,4 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
+
