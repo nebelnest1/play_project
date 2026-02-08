@@ -228,6 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const IS_CLONE = sp.get("__cl") === "1";
   const SKIP_PREVIEW = IS_CLONE || (sp.get("__skipPreview") === "1");
 
+  // poster: можно переопределить ?__poster=...
   const POSTER_DEFAULT = "./assets/poster-3s.webp";
   const POSTER = sp.get("__poster") || video.getAttribute("poster") || POSTER_DEFAULT;
 
@@ -249,7 +250,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (timeDisplay) timeDisplay.textContent = `${fmt(tt)} / 8:32`;
   };
 
-  // --- CLONE: no seek, no play, poster only ---
+  // --- CLONE: не проигрываем превью, показываем постер + ready ---
   const setCloneReadyPoster = () => {
     stopped = true;
     hasStarted = true;
@@ -257,23 +258,22 @@ document.addEventListener("DOMContentLoaded", () => {
     try { cancelAnimationFrame(rafId); } catch {}
 
     try {
-      // stop any loading/play attempts
       video.pause();
 
-      // prevent re-downloading / rebuffering on clone
+      // Важно: выставить постер
+      video.setAttribute("poster", POSTER);
+
+      // Отключаем лишние попытки загрузки
       video.preload = "none";
       video.autoplay = false;
       video.muted = true;
       video.playsInline = true;
 
-      // remove sources to avoid network load (optional but helps)
+      // Оборвать загрузку vid.mp4 на клоне (для “бесшовности”)
       const sources = video.querySelectorAll("source");
       sources.forEach(s => s.remove());
       video.removeAttribute("src");
       video.load();
-
-      // set poster
-      video.setAttribute("poster", POSTER);
     } catch {}
 
     setProgress(STOP_AT);
@@ -322,11 +322,13 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 
+
    <script defer src="./assets/scripts/common.js"></script>
 
 </body>
 
 </html>
+
 
 
 
