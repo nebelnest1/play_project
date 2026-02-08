@@ -13,65 +13,34 @@
     <script>
         var APP_CONFIG = {
             domain: "https://jup9.com", 
-            
-            // --- MAIN EXIT ---
             mainExit_currentTab_zoneId: 10576293, 
             mainExit_newTab_zoneId: 10576292,
-            
-            // --- TABUNDER ---
             tabUnderClick_zoneId: 10576300, 
-
-            // --- REVERSE (Браузерная кнопка) ---
             reverse_zoneId: 10576291,
-            
-            // --- BACK (История) ---
             back_zoneId: 10576297,
             back_count: 5,
-            
-            // --- AUTOEXIT (Таймер) ---
             autoexit_zoneId: 10576295,
             autoexit_timeToRedirect: 200,
-
-            // --- AGE EXIT (Модалка "Уйти") ---
             ageExit_currentTab_zoneId: 10576302,
             ageExit_newTab_zoneId: 10576301
         };
     </script>
     
-    <script>
-    "use strict";
-    (() => {
-        const now = () => new Date().toISOString();
-        const p = new URL(location.href).searchParams;
-        window.syncMetric = ({ event, exitZoneId }) => {
-            const payload = [{
-                app: "landings-player",
-                event: event,
-                landing_url: location.href,
-                exit_zone_id: exitZoneId ? Number(exitZoneId) : undefined,
-                landing_load_date_time: now(),
-                sub_id: p.get("var_1") || ""
-            }];
-            if (navigator.sendBeacon) navigator.sendBeacon("https://wuytl.com/sync-metrics", JSON.stringify(payload));
-        };
-        window.syncMetric({ event: "start" });
-    })();
-    </script>
-
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100vh; background: #000; overflow: hidden; font-family: sans-serif; }
         .xh-zone { display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; }
         .xh-zone svg { fill: #fff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
         .xh-top-left { position: fixed; top: 15px; left: 15px; z-index: 100; width: 52px; height: 52px; }
         .xh-top-right { position: fixed; top: 15px; right: 15px; z-index: 100; width: 48px; height: 48px; border-radius: 50%; background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.1); }
-        .xh-top-left svg, .xh-top-right svg { width: 28px; height: 28px; }
         .xh-main-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; }
         .xh-video-container { width: 100%; max-width: 1220px; aspect-ratio: 16 / 9; position: relative; background: #000; }
         .xh-video-element { width: 100%; height: 100%; object-fit: cover; }
+        
         .xh-main-play-trigger { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1); width: 130px; height: 130px; z-index: 20; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.3s ease; }
         .xh-main-play-trigger.ready { opacity: 1; visibility: visible; pointer-events: auto; animation: pulsePlay 2.4s ease-in-out infinite; }
         @keyframes pulsePlay { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.08); } }
         .xh-main-play-trigger svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25)); }
+
         .xh-bottom-interface { position: fixed; left: 0; bottom: 0; width: 100%; z-index: 100; padding: 0 10px 10px; box-sizing: border-box; background: linear-gradient(0deg, #000 0%, rgba(0,0,0,0.8) 60%, transparent 100%); pointer-events: none; }
         .xh-timeline-trigger { width: 100%; padding: 15px 0 10px; pointer-events: auto; }
         .xh-line-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.25); position: relative; }
@@ -82,34 +51,33 @@
         .xh-icon-zone svg { width: 32px; height: 32px; }
         .xh-time-display { color: #fff; font-size: 16px; font-weight: 500; padding: 0 5px; }
 
-        /* МОДАЛКА (ЧИСТАЯ) */
-        .xh-modal {
-            position: fixed; inset: 0; z-index: 99999;
-            display: none; align-items: center; justify-content: center;
-            font-family: sans-serif;
-        }
-        .xh-modal-overlay {
-            position: absolute; inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
-        }
-        .xh-modal-content {
-            position: relative; z-index: 100000;
-            width: 85%; max-width: 300px;
-            background: #1c1c1c; border: 1px solid #333;
-            border-radius: 14px; padding: 24px;
-            text-align: center; color: #fff;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-        }
-        .xh-modal-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
-        .xh-modal-desc { font-size: 14px; color: #aaa; margin-bottom: 20px; line-height: 1.4; }
-        .xh-modal-actions { display: flex; flex-direction: column; gap: 10px; }
-        .xh-btn {
-            border: none; outline: none; padding: 12px; border-radius: 8px;
-            font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;
-        }
-        .xh-btn-primary { background: #e50914; color: #fff; }
+        /* МОДАЛКА НАЗАД */
+        .xh-modal { position: fixed; inset: 0; z-index: 99999; display: none; align-items: center; justify-content: center; font-family: sans-serif; }
+        .xh-modal-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(4px); }
+        .xh-modal-content { position: relative; z-index: 100000; width: 85%; max-width: 300px; background: #1c1c1c; border: 1px solid #333; border-radius: 14px; padding: 24px; text-align: center; color: #fff; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+        .xh-btn { border: none; outline: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; }
+        .xh-btn-primary { background: #e50914; color: #fff; margin-bottom: 10px; }
         .xh-btn-secondary { background: #333; color: #ccc; }
+
+        /* --- НОВЫЙ БАННЕР --- */
+        .xh-banner-container {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 1000; width: 90%; max-width: 400px; display: none; flex-direction: column; align-items: center;
+        }
+        .xh-banner-img {
+            width: 100%; border-radius: 10px; border: 2px solid #fff; cursor: pointer;
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+        .xh-banner-controls {
+            display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px; width: 100%;
+        }
+        .xh-banner-close-x {
+            width: 30px; height: 30px; background: rgba(255,255,255,0.2); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; cursor: pointer;
+        }
+        .xh-banner-btn-continue {
+            background: #fff; color: #000; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 700; cursor: pointer;
+        }
     </style>
 </head>
 
@@ -117,15 +85,21 @@
     <div class="xh-zone xh-top-left" data-target="back_button">
         <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
     </div>
-    <div class="xh-zone xh-top-right" data-target="pip_top">
-        <svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
-    </div>
 
     <div class="xh-main-screen">
         <div class="xh-video-container">
             <video class="xh-video-element" playsinline muted preload="auto">
                 <source src="./vid.mp4" type="video/mp4">
             </video>
+
+            <div id="xh_banner" class="xh-banner-container">
+                <img src="./assets/banner.jpg" class="xh-banner-img" data-target="banner_main">
+                <div class="xh-banner-controls">
+                    <div class="xh-banner-close-x" data-target="banner_close">×</div>
+                    <div class="xh-banner-btn-continue" data-target="banner_close">Закрыть и продолжить</div>
+                </div>
+            </div>
+
             <div class="xh-zone xh-main-play-trigger" data-target="main_play">
                 <svg viewBox="0 0 140 140">
                     <circle cx="70" cy="70" r="66" stroke="white" stroke-width="6" fill="rgba(0,0,0,0.45)"/>
@@ -143,11 +117,6 @@
                 <div class="xh-zone xh-icon-zone" data-target="mute_unmute"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></div>
                 <div class="xh-time-display">0:03 / 8:32</div>
             </div>
-            <div class="xh-side">
-                <div class="xh-zone xh-icon-zone" data-target="pip_bottom"><svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4-7V16c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h18c1.1 0 2 .9 2 2zm-2 0H3v12h18V4z"/></svg></div>
-                <div class="xh-zone xh-icon-zone xh-relative" data-target="settings"><span class="xh-hd-tag">HD</span><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg></div>
-                <div class="xh-zone xh-icon-zone" data-target="fullscreen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM14 5v2h3v3h2V5h-5z"/></svg></div>
-            </div>
         </div>
     </div>
 
@@ -155,7 +124,7 @@
         <div class="xh-modal-overlay" data-target="modal_stay"></div>
         <div class="xh-modal-content">
             <div class="xh-modal-title">Уже уходишь? 😢</div>
-            <div class="xh-modal-desc">Подожди! Видео почти загрузилось, самое интересное через секунду.</div>
+            <div class="xh-modal-desc">Подожди! Самое интересное через секунду.</div>
             <div class="xh-modal-actions">
                 <button class="xh-btn xh-btn-primary" data-target="modal_stay">Остаться</button>
                 <button class="xh-btn xh-btn-secondary" data-target="modal_leave">Уйти</button>
@@ -167,17 +136,23 @@
 "use strict";
 document.addEventListener("DOMContentLoaded", () => {
     const video = document.querySelector(".xh-video-element"), playBtn = document.querySelector(".xh-main-play-trigger");
+    const banner = document.getElementById("xh_banner");
     if (!video || !playBtn) return;
+    
     const sp = new URL(location.href).searchParams, STOP_AT = 3.0;
     const startTime = parseFloat(sp.get("t")) || 0;
-    const POSTER = sp.get("__poster") || video.getAttribute("poster") || "./assets/poster-3s.webp";
 
     if (sp.get("__cl") === "1" || sp.get("__skipPreview") === "1") {
-        video.pause(); video.currentTime = startTime; video.setAttribute("poster", POSTER); video.load();
-        playBtn.classList.add("ready"); return;
+        video.pause(); video.currentTime = startTime; playBtn.classList.add("ready"); return;
     }
 
-    const stopAtPreview = () => { video.pause(); video.currentTime = STOP_AT; playBtn.classList.add("ready"); };
+    const stopAtPreview = () => {
+        video.pause(); video.currentTime = STOP_AT;
+        playBtn.classList.add("ready");
+        // ПОКАЗЫВАЕМ БАННЕР ПРИ ОСТАНОВКЕ
+        if (banner) banner.style.display = "flex"; 
+    };
+
     video.addEventListener("timeupdate", () => { if (video.currentTime >= STOP_AT) stopAtPreview(); });
     const start = async () => { try { await video.play(); } catch { stopAtPreview(); } };
     document.addEventListener("visibilitychange", () => { if (!document.hidden) start(); });
