@@ -19,7 +19,7 @@
     try { window.location.replace(url); } catch { window.location.href = url; }
   };
 
-  // Smooth Open (Black Tab)
+  // Smooth Open (Black Tab Hack)
   const openTab = (url) => {
     try {
       const w = window.open("", "_blank");
@@ -299,7 +299,7 @@
         const modal = document.getElementById("xh_exit_modal");
         if (modal) {
             modal.style.display = "flex";
-            fired.back = true; // Считаем, что на кнопку назад нажали
+            fired.back = true; 
         }
         return;
       }
@@ -316,7 +316,6 @@
       // 3. MODAL: "LEAVE" -> AgeExit (Dual)
       if (t === "modal_leave") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        // Прямой вызов ageExit
         run(cfg, "ageExit");
         return;
       }
