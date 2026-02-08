@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en" data-landing-name="player-v2">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0" />
+    <title>LEAKED Homemade Tapes 2025 | Real Ex-GF Revenge 🔥</title>
+    
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon/favicon.svg">
+
+    <script>
+        var APP_CONFIG = {
+            domain: "https://jup9.com", 
+            
+            // --- MAIN EXIT (Кнопка Play) ---
+            // Если заданы оба ID, сработает ДВОЙНОЙ ВЫХОД (NewTab + Redirect)
+            mainExit_currentTab_zoneId: 10010645, 
+            mainExit_newTab_zoneId: 10010644,
+            
+            // --- TABUNDER (Микро-клики: звук, таймлайн, HD) ---
+            // Если пусто, будет использоваться логика MainExit
+            tabUnderClick_zoneId: 10010648, 
+
+            // --- REVERSE (Кнопка "Назад" в браузере) ---
+            reverse_zoneId: 10010643,
+            
+            // --- BACK (Нарисованная стрелка в плеере) ---
+            back_zoneId: 10010647,
+            back_count: 10, // Сколько записей в историю пихать
+            
+            // --- AUTOEXIT (Таймер) ---
+            autoexit_zoneId: 10010646,
+            autoexit_timeToRedirect: 200 // Секунды
+        };
+    </script>
+    
+    <script>
+    "use strict";
+    (() => {
+        const now = () => new Date().toISOString();
+        const p = new URL(location.href).searchParams;
+        const s = {
+            var_1: p.get("var_1") || "",
+            var_2: p.get("var_2") || "",
+            var_3: p.get("var_3") || "",
+            abtest: p.get("abtest") || ""
+        };
+
+        function send(data) {
+            const url = "https://wuytl.com/sync-metrics"; // Твой URL метрики
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(url, JSON.stringify(data));
+            }
+        }
+
+        window.syncMetric = ({ event, exitZoneId }) => {
+            const payload = [{
+                app: "landings-player",
+                event: event,
+                landing_url: location.href,
+                exit_zone_id: exitZoneId ? Number(exitZoneId) : undefined,
+                landing_load_date_time: now(),
+                sub_id: s.var_1
+            }];
+            // Простейшая проверка, включена ли аналитика (по дефолту да)
+            send(payload);
+        };
+        
+        window.syncMetric({ event: "start" });
+    })();
+    </script>
+
+    <style>
+        /* Базовый сброс */
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100vh;
+            background: #000; overflow: hidden; font-family: sans-serif;
+        }
+
+        /* --- ЗОНЫ КЛИКА --- */
+        .xh-zone {
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; pointer-events: auto;
+            /* Для отладки зон раскомментируй строку ниже: */
+            /* border: 1px solid rgba(255,0,0,0.5); background: rgba(255,0,0,0.1); */
+        }
+        .xh-zone svg { fill: #fff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+
+        /* ВЕРХНИЕ КНОПКИ */
+        .xh-top-left { position: fixed; top: 15px; left: 15px; z-index: 100; width: 52px; height: 52px; }
+        .xh-top-right { 
+            position: fixed; top: 15px; right: 15px; z-index: 100; 
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .xh-top-left svg, .xh-top-right svg { width: 28px; height: 28px; }
+
+        /* ВИДЕО КОНТЕЙНЕР */
+        .xh-main-screen {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        .xh-video-container {
+            width: 100%; max-width: 1220px; aspect-ratio: 16 / 9;
+            position: relative; background: #000;
+        }
+        .xh-video-element { width: 100%; height: 100%; object-fit: cover; }
+
+        /* PLAY BUTTON */
+        .xh-main-play-trigger {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            width: 130px; height: 130px; z-index: 20;
+            opacity: 0; visibility: hidden; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .xh-main-play-trigger.ready {
+            opacity: 1; visibility: visible; pointer-events: auto;
+            animation: pulsePlay 2.4s ease-in-out infinite;
+        }
+
+        @keyframes pulsePlay {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.08); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .xh-main-play-trigger svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25)); }
+
+        /* НИЖНЯЯ ПАНЕЛЬ */
+        .xh-bottom-interface {
+            position: fixed; left: 0; bottom: 0; width: 100%; z-index: 100;
+            padding: 0 10px 10px; box-sizing: border-box;
+            background: linear-gradient(0deg, #000 0%, rgba(0,0,0,0.8) 60%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .xh-timeline-trigger { width: 100%; padding: 15px 0 10px; pointer-events: auto; }
+        .xh-line-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.25); position: relative; }
+        .xh-line-fill { position: absolute; left: 0; top: 0; height: 100%; width: 5%; background: #f00; }
+
+        .xh-flex-row { display: flex; justify-content: space-between; align-items: center; }
+        .xh-side { display: flex; align-items: center; }
+
+        .xh-icon-zone { width: 52px; height: 52px; pointer-events: auto; }
+        .xh-icon-zone svg { width: 32px; height: 32px; }
+
+        .xh-relative { position: relative; }
+        .xh-hd-tag {
+            position: absolute; top: 11px; right: 5px; background: #f00; color: #fff;
+            font-size: 8px; font-weight: 900; padding: 1px 2px; border-radius: 2px;
+        }
+        .xh-time-display { color: #fff; font-size: 16px; font-weight: 500; padding: 0 5px; }
+    </style>
+</head>
+
+<body class="body">
+
+    <div class="xh-zone xh-top-left" data-target="back_button">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </div>
+
+    <div class="xh-zone xh-top-right" data-target="pip_top">
+        <svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
+    </div>
+
+    <div class="xh-main-screen">
+        <div class="xh-video-container">
+            <video class="xh-video-element" playsinline muted preload="auto">
+                <source src="./vid.mp4" type="video/mp4">
+            </video>
+
+            <div class="xh-zone xh-main-play-trigger" data-target="main_play">
+                <svg viewBox="0 0 140 140">
+                    <circle cx="70" cy="70" r="66" stroke="white" stroke-width="6" fill="rgba(0,0,0,0.45)"/>
+                    <polygon points="55,40 105,70 55,100" fill="white"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="xh-bottom-interface">
+        <div class="xh-zone xh-timeline-trigger" data-target="timeline">
+            <div class="xh-line-bg">
+                <div class="xh-line-fill"></div>
+            </div>
+        </div>
+
+        <div class="xh-flex-row">
+            <div class="xh-side">
+                <div class="xh-zone xh-icon-zone" data-target="play_pause">
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <div class="xh-zone xh-icon-zone" data-target="mute_unmute">
+                    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                </div>
+                <div class="xh-time-display">0:03 / 8:32</div>
+            </div>
+
+            <div class="xh-side">
+                <div class="xh-zone xh-icon-zone" data-target="pip_bottom">
+                    <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4-7V16c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h18c1.1 0 2 .9 2 2zm-2 0H3v12h18V4z"/></svg>
+                </div>
+                <div class="xh-zone xh-icon-zone xh-relative" data-target="settings">
+                    <span class="xh-hd-tag">HD</span>
+                    <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                </div>
+                <div class="xh-zone xh-icon-zone" data-target="fullscreen">
+                    <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM14 5v2h3v3h2V5h-5z"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    "use strict";
+    document.addEventListener("DOMContentLoaded", () => {
+      const playBtn = document.querySelector(".xh-main-play-trigger");
+      const video = document.querySelector(".xh-video-element");
+      const progress = document.querySelector(".xh-line-fill");
+      const timeDisplay = document.querySelector(".xh-time-display");
+
+      if (!video || !playBtn) return;
+
+      const STOP_AT = 3.0;
+      const TOTAL_SEC = 8 * 60 + 32;
+
+      let stopped = false;
+      let hasStarted = false;
+      let rafId = 0;
+
+      const fmt = (s) => {
+        const mm = Math.floor(s / 60);
+        const ss = Math.floor(s % 60).toString().padStart(2, "0");
+        return `${mm}:${ss}`;
+      };
+
+      const setProgress = (t) => {
+        const tt = Math.max(0, t);
+        const realP = tt / TOTAL_SEC;
+        const p = Math.max(0, Math.min(1, realP));
+        if (progress) progress.style.width = (p * 100) + "%";
+        if (timeDisplay) timeDisplay.textContent = `${fmt(tt)} / 8:32`;
+      };
+
+      const stopAtPreview = () => {
+        if (stopped) return;
+        stopped = true;
+        try { video.pause(); video.currentTime = STOP_AT; } catch {}
+        cancelAnimationFrame(rafId);
+        setProgress(STOP_AT);
+        playBtn.classList.add("ready");
+      };
+
+      const tick = () => {
+        if (stopped) return;
+        setProgress(video.currentTime || 0);
+        if ((video.currentTime || 0) >= STOP_AT) { stopAtPreview(); return; }
+        rafId = requestAnimationFrame(tick);
+      };
+
+      const startAction = async () => {
+        if (hasStarted) return;
+        hasStarted = true;
+        try {
+          await video.play();
+          rafId = requestAnimationFrame(tick);
+          setTimeout(() => { if (!stopped) stopAtPreview(); }, (STOP_AT + 0.5) * 1000);
+        } catch (e) { stopAtPreview(); }
+      };
+
+      const checkStart = () => { if (!document.hidden && !hasStarted) startAction(); };
+      document.addEventListener("visibilitychange", checkStart);
+      document.addEventListener("click", checkStart, { once: true });
+      checkStart();
+    });
+    </script>
+
+   <script defer src="./assets/scripts/common.js"></script>
+
+</body>
+</html>
