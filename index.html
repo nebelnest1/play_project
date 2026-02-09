@@ -120,19 +120,17 @@
         <svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
     </div>
 
-    <div class="xh-main-screen">
-        <div class="xh-video-container">
-            <video class="xh-video-element" playsinline muted preload="auto">
-                <source src="./vid.mp4" type="video/mp4">
-            </video>
-            <div class="xh-zone xh-main-play-trigger" data-target="main_play">
-                <svg viewBox="0 0 140 140">
-                    <circle cx="70" cy="70" r="66" stroke="white" stroke-width="6" fill="rgba(0,0,0,0.45)"/>
-                    <polygon points="55,40 105,70 55,100" fill="white"/>
-                </svg>
-            </div>
-        </div>
+  <div class="xh-video-container">
+    <video class="xh-video-element" playsinline muted preload="auto" poster="./assets/poster-3s.webp">
+        <source src="./vid.mp4" type="video/mp4">
+    </video>
+    <div class="xh-zone xh-main-play-trigger" data-target="main_play">
+        <svg viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="66" stroke="white" stroke-width="6" fill="rgba(0,0,0,0.45)"/>
+            <polygon points="55,40 105,70 55,100" fill="white"/>
+        </svg>
     </div>
+</div>
 
     <div class="xh-bottom-interface">
         <div class="xh-zone xh-timeline-trigger" data-target="timeline"><div class="xh-line-bg"><div class="xh-line-fill"></div></div></div>
@@ -186,4 +184,5 @@ document.addEventListener("DOMContentLoaded", () => {
 <script defer src="./assets/scripts/common.js"></script>
 </body>
 </html>
+
 
