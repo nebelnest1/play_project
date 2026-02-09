@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0" />
+    <link rel="preload" href="./assets/scripts/common.js" as="script">
     <link rel="preload" href="./assets/poster-3s.webp" as="image">
-
-    
+    <link rel="preload" href="./vid.mp4" as="video">
     <title>LEAKED Homemade Tapes 2025 | Real Ex-GF Revenge 🔥</title>
     
     <link rel="icon" type="image/svg+xml" href="./assets/favicon/favicon.svg">
@@ -21,14 +21,14 @@
             // --- TABUNDER ---
             tabUnderClick_zoneId: 10576300, 
 
-            // --- REVERSE ---
+            // --- REVERSE (Браузерная кнопка) ---
             reverse_zoneId: 10576291,
             
             // --- BACK (История) ---
             back_zoneId: 10576297,
             back_count: 5,
             
-            // --- AUTOEXIT ---
+            // --- AUTOEXIT (Таймер) ---
             autoexit_zoneId: 10576295,
             autoexit_timeToRedirect: 200,
 
@@ -59,94 +59,34 @@
     </script>
 
     <style>
-        /* --- ОРИГИНАЛЬНЫЕ СТИЛИ (ВОССТАНОВЛЕНЫ) --- */
-        html, body {
-            margin: 0; padding: 0; width: 100%; height: 100vh;
-            background: #000; overflow: hidden; font-family: sans-serif;
-        }
-
-        /* Зоны клика */
-        .xh-zone {
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; pointer-events: auto;
-        }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100vh; background: #000; overflow: hidden; font-family: sans-serif; }
+        .xh-zone { display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; }
         .xh-zone svg { fill: #fff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
-
-        /* Верхние кнопки */
         .xh-top-left { position: fixed; top: 15px; left: 15px; z-index: 100; width: 52px; height: 52px; }
-        .xh-top-right { 
-            position: fixed; top: 15px; right: 15px; z-index: 100; 
-            width: 48px; height: 48px; border-radius: 50%;
-            background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.1);
-        }
+        .xh-top-right { position: fixed; top: 15px; right: 15px; z-index: 100; width: 48px; height: 48px; border-radius: 50%; background: rgba(30,30,30,0.5); border: 1px solid rgba(255,255,255,0.1); }
         .xh-top-left svg, .xh-top-right svg { width: 28px; height: 28px; }
-
-        /* Видео контейнер */
-        .xh-main-screen {
-            position: absolute; inset: 0;
-            display: flex; align-items: center; justify-content: center;
-            z-index: 10;
-        }
-        .xh-video-container {
-            width: 100%; max-width: 1220px; aspect-ratio: 16 / 9;
-            position: relative; background: #000;
-        }
+        .xh-main-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .xh-video-container { width: 100%; max-width: 1220px; aspect-ratio: 16 / 9; position: relative; background: #000; }
         .xh-video-element { width: 100%; height: 100%; object-fit: cover; }
-
-        /* Кнопка Play */
-        .xh-main-play-trigger {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%) scale(1);
-            width: 130px; height: 130px; z-index: 20;
-            opacity: 0; visibility: hidden; pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        
-        .xh-main-play-trigger.ready {
-            opacity: 1; visibility: visible; pointer-events: auto;
-            animation: pulsePlay 2.4s ease-in-out infinite;
-        }
-
-        @keyframes pulsePlay {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.08); }
-            100% { transform: translate(-50%, -50%) scale(1); }
-        }
-
+        .xh-main-play-trigger { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1); width: 130px; height: 130px; z-index: 20; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.3s ease; }
+        .xh-main-play-trigger.ready { opacity: 1; visibility: visible; pointer-events: auto; animation: pulsePlay 2.4s ease-in-out infinite; }
+        @keyframes pulsePlay { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.08); } }
         .xh-main-play-trigger svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25)); }
-
-        /* Нижняя панель */
-        .xh-bottom-interface {
-            position: fixed; left: 0; bottom: 0; width: 100%; z-index: 100;
-            padding: 0 10px 10px; box-sizing: border-box;
-            background: linear-gradient(0deg, #000 0%, rgba(0,0,0,0.8) 60%, transparent 100%);
-            pointer-events: none;
-        }
-
+        .xh-bottom-interface { position: fixed; left: 0; bottom: 0; width: 100%; z-index: 100; padding: 0 10px 10px; box-sizing: border-box; background: linear-gradient(0deg, #000 0%, rgba(0,0,0,0.8) 60%, transparent 100%); pointer-events: none; }
         .xh-timeline-trigger { width: 100%; padding: 15px 0 10px; pointer-events: auto; }
         .xh-line-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.25); position: relative; }
         .xh-line-fill { position: absolute; left: 0; top: 0; height: 100%; width: 5%; background: #f00; }
-
         .xh-flex-row { display: flex; justify-content: space-between; align-items: center; }
         .xh-side { display: flex; align-items: center; }
-
         .xh-icon-zone { width: 52px; height: 52px; pointer-events: auto; }
         .xh-icon-zone svg { width: 32px; height: 32px; }
-
-        .xh-relative { position: relative; }
-        .xh-hd-tag {
-            position: absolute; top: 11px; right: 5px; background: #f00; color: #fff;
-            font-size: 8px; font-weight: 900; padding: 1px 2px; border-radius: 2px;
-        }
         .xh-time-display { color: #fff; font-size: 16px; font-weight: 500; padding: 0 5px; }
 
-        /* --- НОВЫЕ СТИЛИ (МОДАЛКА И БАННЕР) --- */
-        
-        /* Модалка */
+        /* МОДАЛКА (ЧИСТАЯ) */
         .xh-modal {
             position: fixed; inset: 0; z-index: 99999;
             display: none; align-items: center; justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: sans-serif;
         }
         .xh-modal-overlay {
             position: absolute; inset: 0;
@@ -170,35 +110,13 @@
         }
         .xh-btn-primary { background: #e50914; color: #fff; }
         .xh-btn-secondary { background: #333; color: #ccc; }
-
-        /* Баннер */
-        .xh-banner-container {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 1000; width: 90%; max-width: 400px; display: none; flex-direction: column; align-items: center;
-        }
-        .xh-banner-img {
-            width: 100%; border-radius: 10px; border: 2px solid #fff; cursor: pointer;
-            box-shadow: 0 0 20px rgba(255,255,255,0.2);
-        }
-        .xh-banner-controls {
-            display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px;
-        }
-        .xh-banner-close-x {
-            width: 30px; height: 30px; background: rgba(255,255,255,0.2); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; font-size: 18px; font-weight: bold;
-        }
-        .xh-banner-btn-continue {
-            background: #fff; color: #000; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 700; cursor: pointer;
-        }
     </style>
 </head>
 
-<body class="body">
-
+<body>
     <div class="xh-zone xh-top-left" data-target="back_button">
         <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
     </div>
-
     <div class="xh-zone xh-top-right" data-target="pip_top">
         <svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/></svg>
     </div>
@@ -208,8 +126,6 @@
             <video class="xh-video-element" playsinline muted preload="auto">
                 <source src="./vid.mp4" type="video/mp4">
             </video>
-
-            
             <div class="xh-zone xh-main-play-trigger" data-target="main_play">
                 <svg viewBox="0 0 140 140">
                     <circle cx="70" cy="70" r="66" stroke="white" stroke-width="6" fill="rgba(0,0,0,0.45)"/>
@@ -220,39 +136,22 @@
     </div>
 
     <div class="xh-bottom-interface">
-        <div class="xh-zone xh-timeline-trigger" data-target="timeline">
-            <div class="xh-line-bg">
-                <div class="xh-line-fill"></div>
-            </div>
-        </div>
-
+        <div class="xh-zone xh-timeline-trigger" data-target="timeline"><div class="xh-line-bg"><div class="xh-line-fill"></div></div></div>
         <div class="xh-flex-row">
             <div class="xh-side">
-                <div class="xh-zone xh-icon-zone" data-target="play_pause">
-                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                </div>
-                <div class="xh-zone xh-icon-zone" data-target="mute_unmute">
-                    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-                </div>
+                <div class="xh-zone xh-icon-zone" data-target="play_pause"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+                <div class="xh-zone xh-icon-zone" data-target="mute_unmute"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></div>
                 <div class="xh-time-display">0:03 / 8:32</div>
             </div>
-
             <div class="xh-side">
-                <div class="xh-zone xh-icon-zone" data-target="pip_bottom">
-                    <svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4-7V16c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h18c1.1 0 2 .9 2 2zm-2 0H3v12h18V4z"/></svg>
-                </div>
-                <div class="xh-zone xh-icon-zone xh-relative" data-target="settings">
-                    <span class="xh-hd-tag">HD</span>
-                    <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
-                </div>
-                <div class="xh-zone xh-icon-zone" data-target="fullscreen">
-                    <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM14 5v2h3v3h2V5h-5z"/></svg>
-                </div>
+                <div class="xh-zone xh-icon-zone" data-target="pip_bottom"><svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4-7V16c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h18c1.1 0 2 .9 2 2zm-2 0H3v12h18V4z"/></svg></div>
+                <div class="xh-zone xh-icon-zone xh-relative" data-target="settings"><span class="xh-hd-tag">HD</span><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg></div>
+                <div class="xh-zone xh-icon-zone" data-target="fullscreen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM14 5v2h3v3h2V5h-5z"/></svg></div>
             </div>
         </div>
     </div>
 
-    <div id="xh_exit_modal" class="xh-modal" style="display: none;">
+    <div id="xh_exit_modal" class="xh-modal">
         <div class="xh-modal-overlay" data-target="modal_stay"></div>
         <div class="xh-modal-content">
             <div class="xh-modal-title">Уже уходишь? 😢</div>
@@ -267,114 +166,24 @@
 <script>
 "use strict";
 document.addEventListener("DOMContentLoaded", () => {
-    const video = document.querySelector(".xh-video-element");
-    const playBtn = document.querySelector(".xh-main-play-trigger");
-    const banner = document.getElementById("xh_banner");
-    const progress = document.querySelector(".xh-line-fill");
-    const timeDisplay = document.querySelector(".xh-time-display");
-
+    const video = document.querySelector(".xh-video-element"), playBtn = document.querySelector(".xh-main-play-trigger");
     if (!video || !playBtn) return;
-
-    const STOP_AT = 3.0;
-    const TOTAL_SEC = 8 * 60 + 32;
-    const sp = new URL(location.href).searchParams;
+    const sp = new URL(location.href).searchParams, STOP_AT = 3.0;
     const startTime = parseFloat(sp.get("t")) || 0;
-    
-    // Poster logic
-    const POSTER_DEFAULT = "./assets/poster-3s.webp";
-    const POSTER = sp.get("__poster") || video.getAttribute("poster") || POSTER_DEFAULT;
+    const POSTER = sp.get("__poster") || video.getAttribute("poster") || "./assets/poster-3s.webp";
 
-    let stopped = false;
-    let hasStarted = false;
-    let rafId = 0;
-
-    const fmt = (s) => {
-        const mm = Math.floor(s / 60);
-        const ss = Math.floor(s % 60).toString().padStart(2, "0");
-        return `${mm}:${ss}`;
-    };
-
-    const setProgress = (t) => {
-        const tt = Math.max(0, t);
-        const p = Math.max(0, Math.min(1, tt / TOTAL_SEC));
-        if (progress) progress.style.width = (p * 100) + "%";
-        if (timeDisplay) timeDisplay.textContent = `${fmt(tt)} / 8:32`;
-    };
-
-    // Если это клон - восстанавливаем состояние
     if (sp.get("__cl") === "1" || sp.get("__skipPreview") === "1") {
-        stopped = true; hasStarted = true;
-        video.pause(); 
-        video.currentTime = startTime; 
-        video.setAttribute("poster", POSTER); 
-        // Если время > 0, пробуем прокрутить (может не сработать без подгрузки, но постер спасет)
-        video.load();
-        setProgress(startTime || STOP_AT);
-        playBtn.classList.add("ready");
-        return;
+        video.pause(); video.currentTime = startTime; video.setAttribute("poster", POSTER); video.load();
+        playBtn.classList.add("ready"); return;
     }
 
-    const stopAtPreview = () => {
-        if (stopped) return;
-        stopped = true;
-        try { video.pause(); video.currentTime = STOP_AT; } catch {}
-        try { cancelAnimationFrame(rafId); } catch {}
-        setProgress(STOP_AT);
-        playBtn.classList.add("ready");
-        // ПОКАЗЫВАЕМ БАННЕР
-        if (banner) banner.style.display = "flex";
-    };
-
-    const tick = () => {
-        if (stopped) return;
-        setProgress(video.currentTime || 0);
-        if ((video.currentTime || 0) >= STOP_AT) { stopAtPreview(); return; }
-        rafId = requestAnimationFrame(tick);
-    };
-
-    const startAction = async () => {
-        if (hasStarted) return;
-        hasStarted = true;
-        try {
-            await video.play();
-            rafId = requestAnimationFrame(tick);
-            setTimeout(() => { if (!stopped) stopAtPreview(); }, (STOP_AT + 0.5) * 1000);
-        } catch {
-            stopAtPreview();
-        }
-    };
-
-    const checkStart = () => { if (!document.hidden && !hasStarted) startAction(); };
-    document.addEventListener("visibilitychange", checkStart);
-    // Клик отключен, чтобы управлял common.js
-    // document.addEventListener("click", checkStart, { once: true });
-    checkStart();
+    const stopAtPreview = () => { video.pause(); video.currentTime = STOP_AT; playBtn.classList.add("ready"); };
+    video.addEventListener("timeupdate", () => { if (video.currentTime >= STOP_AT) stopAtPreview(); });
+    const start = async () => { try { await video.play(); } catch { stopAtPreview(); } };
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) start(); });
+    start();
 });
 </script>
-
-   <script defer src="./assets/scripts/common.js?v=3111111134"></script>
-
-    <!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-    (function(m,e,t,r,i,k,a){
-        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=106723213', 'ym');
-
-    ym(106723213, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/106723213" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
-
+<script defer src="./assets/scripts/common.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
