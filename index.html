@@ -163,26 +163,59 @@
 <script>
 "use strict";
 document.addEventListener("DOMContentLoaded", () => {
-    const video = document.querySelector(".xh-video-element"), playBtn = document.querySelector(".xh-main-play-trigger");
+    const video = document.querySelector(".xh-video-element");
+    const playBtn = document.querySelector(".xh-main-play-trigger");
     if (!video || !playBtn) return;
-    const sp = new URL(location.href).searchParams, STOP_AT = 3.0;
-    const startTime = parseFloat(sp.get("t")) || 0;
-    const POSTER = sp.get("__poster") || video.getAttribute("poster") || "./assets/poster-3s.webp";
 
+    const sp = new URL(location.href).searchParams;
+    const STOP_AT = 3.0; // Секунда, на которой ставим паузу для превью
+    
+    // Логика определения постера: URL параметры > атрибут в HTML > дефолтный путь
+    const currentPoster = sp.get("__poster") || video.getAttribute("poster") || "./assets/poster-3s.webp";
+    const startTime = parseFloat(sp.get("t")) || 0;
+
+    // Устанавливаем постер и время сразу
+    video.setAttribute("poster", currentPoster);
+
+    // Если это КЛОН или мы пропустили превью
     if (sp.get("__cl") === "1" || sp.get("__skipPreview") === "1") {
-        video.pause(); video.currentTime = startTime; video.setAttribute("poster", POSTER); video.load();
-        playBtn.classList.add("ready"); return;
+        video.currentTime = startTime;
+        video.pause(); 
+        playBtn.classList.add("ready");
+        return;
     }
 
-    const stopAtPreview = () => { video.pause(); video.currentTime = STOP_AT; playBtn.classList.add("ready"); };
-    video.addEventListener("timeupdate", () => { if (video.currentTime >= STOP_AT) stopAtPreview(); });
-    const start = async () => { try { await video.play(); } catch { stopAtPreview(); } };
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) start(); });
-    start();
+    // Логика обычного захода (Превью 3 секунды)
+    const stopAtPreview = () => {
+        video.pause();
+        video.currentTime = STOP_AT;
+        playBtn.classList.add("ready");
+    };
+
+    video.addEventListener("timeupdate", function handler() {
+        if (video.currentTime >= STOP_AT) {
+            stopAtPreview();
+            video.removeEventListener("timeupdate", handler); // Убираем слушатель после срабатывания
+        }
+    });
+
+    const start = async () => {
+        try {
+            await video.play();
+        } catch (e) {
+            // Если автоплей заблокирован браузером, просто показываем кнопку
+            stopAtPreview();
+        }
+    };
+
+    // Запускаем видео, если вкладка активна
+    if (!document.hidden) start();
+    document.addEventListener("visibilitychange", () => { if (!document.hidden && video.paused && !playBtn.classList.contains("ready")) start(); });
 });
 </script>
 <script defer src="./assets/scripts/common.js"></script>
 </body>
 </html>
+
 
 
