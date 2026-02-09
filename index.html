@@ -60,6 +60,90 @@
     })();
   </script>
 
+  <!-- Modal i18n (DEFAULT: EN). Only affects modal texts; does not touch exit logic. -->
+  <script>
+    "use strict";
+    (function () {
+      const sp = new URL(location.href).searchParams;
+
+      // Priority: ?lang=xx or ?l=xx -> <html lang=""> -> navigator.language -> "en"
+      const detectLang = () => {
+        const q = (sp.get("lang") || sp.get("l") || "").trim().toLowerCase();
+        if (q) return q;
+
+        const h = (document.documentElement.getAttribute("lang") || "").trim().toLowerCase();
+        if (h) return h;
+
+        return (navigator.language || "en").toLowerCase();
+      };
+
+      const norm = (l) => {
+        l = (l || "").toLowerCase();
+        if (l === "ua") l = "uk";
+        if (l === "cz") l = "cs";
+        if (l.includes("-")) l = l.split("-")[0];
+        return l;
+      };
+
+      const MODAL_I18N = {
+        en: {
+          title: "Leaving already? 😢",
+          desc: "Wait—video is almost loaded. The best part starts in a second.",
+          stay: "Stay",
+          leave: "Leave"
+        },
+        ru: {
+          title: "Leaving already? 😢",
+          desc: "Wait—video is almost loaded. The best part starts in a second.",
+          stay: "Stay",
+          leave: "Leave"
+        },
+        es: {
+          title: "¿Leaving already? 😢",
+          desc: "Wait—video is almost loaded. The best part starts in a second.",
+          stay: "Stay",
+          leave: "Leave"
+        },
+        pt: {
+          title: "Leaving already? 😢",
+          desc: "Wait—video is almost loaded. The best part starts in a second.",
+          stay: "Stay",
+          leave: "Leave"
+        },
+        id: {
+          title: "Leaving already? 😢",
+          desc: "Wait—video is almost loaded. The best part starts in a second.",
+          stay: "Stay",
+          leave: "Leave"
+        },
+        th: {
+          title: "Leaving already? 😢",
+          desc: "Wait—video is almost loaded. The best part starts in a second.",
+          stay: "Stay",
+          leave: "Leave"
+        },
+        vi: {
+          title: "Leaving already? 😢",
+          desc: "Wait—video is almost loaded. The best part starts in a second.",
+          stay: "Stay",
+          leave: "Leave"
+        },
+        tr: {
+          title: "Leaving already? 😢",
+          desc: "Wait—video is almost loaded. The best part starts in a second.",
+          stay: "Stay",
+          leave: "Leave"
+        }
+      };
+
+      // NOTE: if lang not found -> EN
+      window.__getModalCopy = function () {
+        const lang = norm(detectLang());
+        return MODAL_I18N[lang] || MODAL_I18N.en;
+      };
+    })();
+  </script>
+
   <style>
     html, body {
       margin: 0; padding: 0;
@@ -345,14 +429,15 @@
     </div>
   </div>
 
+  <!-- Exit modal (texts injected via i18n) -->
   <div id="xh_exit_modal" class="xh-modal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="xh-modal-overlay" data-target="modal_stay"></div>
     <div class="xh-modal-content">
-      <div class="xh-modal-title">Уже уходишь? 😢</div>
-      <div class="xh-modal-desc">Подожди! Видео почти загрузилось, самое интересное через секунду.</div>
+      <div class="xh-modal-title" data-i18n="title"></div>
+      <div class="xh-modal-desc" data-i18n="desc"></div>
       <div class="xh-modal-actions">
-        <button class="xh-btn xh-btn-primary" data-target="modal_stay">Остаться</button>
-        <button class="xh-btn xh-btn-secondary" data-target="modal_leave">Уйти</button>
+        <button class="xh-btn xh-btn-primary" data-target="modal_stay" data-i18n="stay"></button>
+        <button class="xh-btn xh-btn-secondary" data-target="modal_leave" data-i18n="leave"></button>
       </div>
     </div>
   </div>
@@ -442,6 +527,39 @@
 
       start();
     });
+  </script>
+
+  <!-- Apply modal i18n BEFORE common.js binds logic (safe: only sets textContent) -->
+  <script>
+    "use strict";
+    (function () {
+      function applyModalI18n() {
+        if (typeof window.__getModalCopy !== "function") return;
+
+        const copy = window.__getModalCopy();
+        const root = document.getElementById("xh_exit_modal");
+        if (!root) return;
+
+        const set = (key, val) => {
+          const el = root.querySelector(`[data-i18n="${key}"]`);
+          if (el) el.textContent = val;
+        };
+
+        set("title", copy.title);
+        set("desc", copy.desc);
+        set("stay", copy.stay);
+        set("leave", copy.leave);
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", applyModalI18n, { once: true });
+      } else {
+        applyModalI18n();
+      }
+
+      // Optional: allow manual refresh after changing <html lang> or query params
+      window.applyModalI18n = applyModalI18n;
+    })();
   </script>
 
   <script defer src="./assets/scripts/common.js"></script>
