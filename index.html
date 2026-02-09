@@ -85,56 +85,148 @@
         return l;
       };
 
-      const MODAL_I18N = {
-        en: {
-          title: "Leaving already? 😢",
-          desc: "Wait—video is almost loaded. The best part starts in a second.",
-          stay: "Stay",
-          leave: "Leave"
-        },
-        ru: {
-          title: "Leaving already? 😢",
-          desc: "Wait—video is almost loaded. The best part starts in a second.",
-          stay: "Stay",
-          leave: "Leave"
-        },
-        es: {
-          title: "¿Leaving already? 😢",
-          desc: "Wait—video is almost loaded. The best part starts in a second.",
-          stay: "Stay",
-          leave: "Leave"
-        },
-        pt: {
-          title: "Leaving already? 😢",
-          desc: "Wait—video is almost loaded. The best part starts in a second.",
-          stay: "Stay",
-          leave: "Leave"
-        },
-        id: {
-          title: "Leaving already? 😢",
-          desc: "Wait—video is almost loaded. The best part starts in a second.",
-          stay: "Stay",
-          leave: "Leave"
-        },
-        th: {
-          title: "Leaving already? 😢",
-          desc: "Wait—video is almost loaded. The best part starts in a second.",
-          stay: "Stay",
-          leave: "Leave"
-        },
-        vi: {
-          title: "Leaving already? 😢",
-          desc: "Wait—video is almost loaded. The best part starts in a second.",
-          stay: "Stay",
-          leave: "Leave"
-        },
-        tr: {
-          title: "Leaving already? 😢",
-          desc: "Wait—video is almost loaded. The best part starts in a second.",
-          stay: "Stay",
-          leave: "Leave"
-        }
-      };
+    const MODAL_I18N = {
+  en: {
+    title: "Leaving already? 😢",
+    desc: "Wait—video is almost loaded. The best part starts in a second.",
+    stay: "Stay",
+    leave: "Leave"
+  },
+
+  es: {
+    title: "¿Ya te vas? 😢",
+    desc: "Espera: el video casi se ha cargado. Lo mejor empieza en un segundo.",
+    stay: "Quedarme",
+    leave: "Salir"
+  },
+
+  pt: {
+    title: "Já vai embora? 😢",
+    desc: "Espera — o vídeo quase carregou. A melhor parte começa já.",
+    stay: "Ficar",
+    leave: "Sair"
+  },
+
+  ru: {
+    title: "Уже уходишь? 😢",
+    desc: "Подожди! Видео почти загрузилось, самое интересное через секунду.",
+    stay: "Остаться",
+    leave: "Уйти"
+  },
+
+  uk: {
+    title: "Вже йдеш? 😢",
+    desc: "Зачекай! Відео майже завантажилось, найцікавіше за мить.",
+    stay: "Залишитись",
+    leave: "Вийти"
+  },
+
+  de: {
+    title: "Gehst du schon? 😢",
+    desc: "Warte — das Video ist fast geladen. Der beste Teil kommt gleich.",
+    stay: "Bleiben",
+    leave: "Verlassen"
+  },
+
+  fr: {
+    title: "Tu pars déjà ? 😢",
+    desc: "Attends — la vidéo est presque chargée. Le meilleur arrive.",
+    stay: "Rester",
+    leave: "Quitter"
+  },
+
+  it: {
+    title: "Vai già via? 😢",
+    desc: "Aspetta — il video è quasi caricato. Il meglio arriva ora.",
+    stay: "Resta",
+    leave: "Esci"
+  },
+
+  tr: {
+    title: "Şimdiden gidiyor musun? 😢",
+    desc: "Bekle — video neredeyse yüklendi. En iyi kısım birazdan.",
+    stay: "Kal",
+    leave: "Çık"
+  },
+
+  pl: {
+    title: "Już wychodzisz? 😢",
+    desc: "Poczekaj — wideo prawie się załadowało. Najlepsze za chwilę.",
+    stay: "Zostań",
+    leave: "Wyjdź"
+  },
+
+  ro: {
+    title: "Pleci deja? 😢",
+    desc: "Așteaptă — videoclipul aproape s-a încărcat. Urmează partea cea mai bună.",
+    stay: "Rămân",
+    leave: "Ies"
+  },
+
+  hu: {
+    title: "Már mész? 😢",
+    desc: "Várj — a videó majdnem betöltött. A legjobb rész következik.",
+    stay: "Maradok",
+    leave: "Kilépek"
+  },
+
+  cs: {
+    title: "Už odcházíš? 😢",
+    desc: "Počkej — video je téměř načtené. To nejlepší přijde hned.",
+    stay: "Zůstat",
+    leave: "Odejít"
+  },
+
+  id: {
+    title: "Sudah mau pergi? 😢",
+    desc: "Tunggu — video hampir siap. Bagian terbaik segera dimulai.",
+    stay: "Tetap",
+    leave: "Keluar"
+  },
+
+  th: {
+    title: "จะไปแล้วเหรอ? 😢",
+    desc: "รอก่อน! วิดีโอใกล้โหลดเสร็จแล้ว ช่วงที่ดีที่สุดกำลังจะมา",
+    stay: "อยู่ต่อ",
+    leave: "ออก"
+  },
+
+  vi: {
+    title: "Bạn rời đi rồi sao? 😢",
+    desc: "Đợi chút — video gần tải xong. Phần hay nhất sắp bắt đầu.",
+    stay: "Ở lại",
+    leave: "Rời đi"
+  },
+
+  ms: {
+    title: "Nak pergi sekarang? 😢",
+    desc: "Tunggu — video hampir siap. Bahagian terbaik akan bermula.",
+    stay: "Tunggu",
+    leave: "Keluar"
+  },
+
+  hi: {
+    title: "अभी जा रहे हो? 😢",
+    desc: "रुको — वीडियो लगभग लोड हो गया है। सबसे अच्छा हिस्सा आने वाला है।",
+    stay: "रुको",
+    leave: "जाओ"
+  },
+
+  ar: {
+    title: "هل ستغادر الآن؟ 😢",
+    desc: "انتظر — الفيديو أوشك على التحميل. الأفضل قادم.",
+    stay: "البقاء",
+    leave: "مغادرة"
+  },
+
+  bn: {
+    title: "এখনই চলে যাচ্ছো? 😢",
+    desc: "একটু অপেক্ষা করো — ভিডিও প্রায় লোড হয়ে গেছে। সেরা অংশ আসছে।",
+    stay: "থাকি",
+    leave: "চলে যাই"
+  }
+};
+
 
       // NOTE: if lang not found -> EN
       window.__getModalCopy = function () {
@@ -565,3 +657,4 @@
   <script defer src="./assets/scripts/common.js"></script>
 </body>
 </html>
+
