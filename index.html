@@ -552,8 +552,7 @@
     </div>
   </div>
 
-  <!-- Preview logic: 3s -> show play button ALWAYS. Clone: poster/time and ready. -->
-  <script>
+ <script>
     "use strict";
     document.addEventListener("DOMContentLoaded", () => {
       const video = document.querySelector(".xh-video-element");
@@ -631,11 +630,21 @@
         }
       };
 
-      document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) start();
-      });
-
-      start();
+      // --- ИЗМЕНЕНИЕ: ЛОГИКА ДЛЯ ПОПАНДЕРА ---
+      // 1. Если вкладка УЖЕ активна (прямой заход) -> Старт сразу.
+      if (document.visibilityState === "visible") {
+        start();
+      } 
+      // 2. Если вкладка в фоне (попандер) -> Ждем первого захода юзера.
+      else {
+        const onFirstVisible = () => {
+           if (document.visibilityState === "visible") {
+              start(); // Запускаем превью только когда глаз видит
+              document.removeEventListener("visibilitychange", onFirstVisible);
+           }
+        };
+        document.addEventListener("visibilitychange", onFirstVisible);
+      }
     });
   </script>
 
@@ -675,6 +684,7 @@
   <script defer src="./assets/scripts/common.js"></script>
 </body>
 </html>
+
 
 
 
