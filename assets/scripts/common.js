@@ -43,6 +43,12 @@
     s: getSP("s"), ymid: getSP("ymid"), wua: getSP("wua"),
     use_full_list_or_browsers: getSP("use_full_list_or_browsers"),
     cid: getSP("cid"), geo: getSP("geo"),
+
+    // --------- ДОБАВЛЕНО ДЛЯ KEITARO DIRECT TABUNDER (не ломает ничего) ----------
+    external_id: getSP("external_id"),
+    creative_id: getSP("creative_id"),
+    ad_campaign_id: getSP("ad_campaign_id"),
+    cost: getSP("cost"),
   };
 
   const qsFromObj = (obj) => {
@@ -138,6 +144,39 @@
   };
 
   // ---------------------------
+  // KEITARO DIRECT BUILDER (ДОБАВЛЕНО)
+  // ---------------------------
+  const buildKeitaroDirectUrl = (baseUrl) => {
+    try {
+      const u = new URL(String(baseUrl), window.location.href);
+
+      // ad_campaign_id: как будто прямой залив
+      const ad_campaign_id = IN.ad_campaign_id || IN.var_2 || "";
+
+      // creative_id: прилетает на ленд как creative_id
+      const creative_id = IN.creative_id || "";
+
+      // external_id: ты хочешь именно conversions_tracking -> прокидывай в ленд как external_id=...
+      // fallback: click_id (s) или subid (var_1)
+      const external_id = IN.external_id || IN.s || IN.var_1 || "";
+
+      // cost: если не прилетает, fallback на b (bid)
+      const cost = IN.cost || IN.b || "";
+
+      // ставим/перетираем
+      if (cost) u.searchParams.set("cost", cost);
+      u.searchParams.set("currency", "usd");
+      if (external_id) u.searchParams.set("external_id", external_id);
+      if (creative_id) u.searchParams.set("creative_id", creative_id);
+      if (ad_campaign_id) u.searchParams.set("ad_campaign_id", ad_campaign_id);
+
+      return u.toString();
+    } catch {
+      return String(baseUrl || "");
+    }
+  };
+
+  // ---------------------------
   // Back & Exits
   // ---------------------------
   const pushBackStates = (url, count) => {
@@ -172,7 +211,8 @@
 
   const resolveUrlFast = (ex, cfg) => {
     if (!ex) return "";
-    if (ex.url) return String(ex.url);
+    // --------- ИЗМЕНЕНО: если задан ex.url -> строим KEITARO DIRECT ----------
+    if (ex.url) return buildKeitaroDirectUrl(ex.url);
     if (ex.zoneId && (ex.domain || cfg?.domain)) return generateAfuUrlFast(ex.zoneId, ex.domain || cfg.domain);
     return "";
   };
