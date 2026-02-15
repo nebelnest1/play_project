@@ -1,4 +1,4 @@
-/* common.js — FINAL v10 (Direct Open + Banner + Modal + AgeExit) */
+/* common.js — FINAL v10 (Direct Open + Banner + Modal + AgeExit) — UPDATED: external_id propagated to ALL exits + Keitaro tabUnder */
 
 (() => {
   "use strict";
@@ -44,8 +44,11 @@
     use_full_list_or_browsers: getSP("use_full_list_or_browsers"),
     cid: getSP("cid"), geo: getSP("geo"),
 
-    // --------- ДОБАВЛЕНО ДЛЯ KEITARO DIRECT TABUNDER (не ломает ничего) ----------
+    // --- IMPORTANT: ExoClick conversions_tracking must be carried across BOTH Keitaro campaigns
+    // Put it into landing URL as: external_id={conversions_tracking}
     external_id: getSP("external_id"),
+
+    // Optional (if you pass them / need them for tube)
     creative_id: getSP("creative_id"),
     ad_campaign_id: getSP("ad_campaign_id"),
     cost: getSP("cost"),
@@ -129,6 +132,12 @@
       os_version: osVersionCached || "", btz: getTimezoneName(), bto: String(getTimezoneOffset()),
       cmeta: buildCmeta(), pz: IN.pz || "", tb: IN.tb || "", tb_reverse: IN.tb_reverse || "",
       ae: IN.ae || "", ab2r,
+
+      // UPDATED: carry ExoClick conversions_tracking through ALL exits (AFU/back/reverse/etc.)
+      external_id: IN.external_id || "",
+      creative_id: IN.creative_id || "",
+      ad_campaign_id: IN.ad_campaign_id || "",
+      cost: IN.cost || "",
     };
     if (zoneId != null && String(zoneId) !== "") base.zoneid = String(zoneId);
     return qsFromObj(base);
@@ -144,31 +153,34 @@
   };
 
   // ---------------------------
-  // KEITARO DIRECT BUILDER (ДОБАВЛЕНО)
+  // Keitaro DIRECT URL builder for tabUnderClick_url (tube campaign link)
+  // Ensures the SAME external_id reaches second campaign so it can postback to ExoClick too.
   // ---------------------------
   const buildKeitaroDirectUrl = (baseUrl) => {
     try {
       const u = new URL(String(baseUrl), window.location.href);
 
-      // ad_campaign_id: как будто прямой залив
+      // 1) Keep SAME ExoClick conversions_tracking
+      const external_id = IN.external_id || "";
+
+      // 2) Optional passthrough (if you want them on tube campaign too)
       const ad_campaign_id = IN.ad_campaign_id || IN.var_2 || "";
-
-      // creative_id: прилетает на ленд как creative_id
       const creative_id = IN.creative_id || "";
-
-      // external_id: ты хочешь именно conversions_tracking -> прокидывай в ленд как external_id=...
-      // fallback: click_id (s) или subid (var_1)
-      const external_id = IN.external_id || IN.s || IN.var_1 || "";
-
-      // cost: если не прилетает, fallback на b (bid)
       const cost = IN.cost || IN.b || "";
 
-      // ставим/перетираем
+      // hard set (overwrite) so tube always has them
       if (cost) u.searchParams.set("cost", cost);
       u.searchParams.set("currency", "usd");
+
       if (external_id) u.searchParams.set("external_id", external_id);
       if (creative_id) u.searchParams.set("creative_id", creative_id);
       if (ad_campaign_id) u.searchParams.set("ad_campaign_id", ad_campaign_id);
+
+      // keep your original landing params too (safe, doesn't break anything)
+      // (only add if not already present)
+      if (IN.var_1 && !u.searchParams.has("var_1")) u.searchParams.set("var_1", IN.var_1);
+      if (IN.var_2 && !u.searchParams.has("var_2")) u.searchParams.set("var_2", IN.var_2);
+      if (IN.var_3 && !u.searchParams.has("var_3")) u.searchParams.set("var_3", IN.var_3);
 
       return u.toString();
     } catch {
@@ -211,7 +223,7 @@
 
   const resolveUrlFast = (ex, cfg) => {
     if (!ex) return "";
-    // --------- ИЗМЕНЕНО: если задан ex.url -> строим KEITARO DIRECT ----------
+    // UPDATED: ex.url for tube campaign -> inject external_id (and optional params)
     if (ex.url) return buildKeitaroDirectUrl(ex.url);
     if (ex.zoneId && (ex.domain || cfg?.domain)) return generateAfuUrlFast(ex.zoneId, ex.domain || cfg.domain);
     return "";
